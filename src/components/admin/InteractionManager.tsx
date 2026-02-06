@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MessageSquare, Lightbulb, ShieldCheck, Check, X, Trash2, Filter, Plus } from 'lucide-react';
+import { Star, MessageSquare, Lightbulb, ShieldCheck, Check, X, Trash2, Filter, Plus, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { blink } from '@/lib/blink';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { ProjectChatManager } from './ProjectChatManager';
 
 export function InteractionManager({ projects }: { projects: any[] }) {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -186,9 +187,14 @@ export function InteractionManager({ projects }: { projects: any[] }) {
       <Tabs defaultValue="reviews">
         <TabsList className="bg-zinc-100 p-1 rounded-full border mb-8">
           <TabsTrigger value="reviews" className="rounded-full gap-2">Reviews ({reviews.length})</TabsTrigger>
+          <TabsTrigger value="conversations" className="rounded-full gap-2">Conversations</TabsTrigger>
           <TabsTrigger value="suggestions" className="rounded-full gap-2">Suggestions ({suggestions.length})</TabsTrigger>
           <TabsTrigger value="audits" className="rounded-full gap-2">Audits ({audits.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="conversations">
+          <ProjectChatManager projects={projects} />
+        </TabsContent>
 
         <TabsContent value="reviews">
           <div className="grid grid-cols-1 gap-4">

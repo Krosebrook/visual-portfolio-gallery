@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MessageSquare, Lightbulb, ShieldCheck, Send, CheckCircle2, LayoutTemplate } from 'lucide-react';
+import { Star, MessageSquare, Lightbulb, ShieldCheck, Send, CheckCircle2, LayoutTemplate, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,6 +7,7 @@ import { blink } from '@/lib/blink';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectVisualizer } from './ProjectVisualizer';
+import { ProjectChat } from './ProjectChat';
 
 interface ProjectInteractionsProps {
   projectId: string;
@@ -17,6 +18,7 @@ interface ProjectInteractionsProps {
 export function ProjectInteractions({ projectId, projectTitle = '', projectDescription = '' }: ProjectInteractionsProps) {
   const [reviews, setReviews] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
+  const [messageCount, setMessageCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,12 +32,14 @@ export function ProjectInteractions({ projectId, projectTitle = '', projectDescr
 
   const fetchInteractions = async () => {
     try {
-      const [r, a] = await Promise.all([
+      const [r, a, m] = await Promise.all([
         blink.db.project_reviews.list({ where: { project_id: projectId, status: 'approved' } }),
-        blink.db.project_audits.list({ where: { project_id: projectId, status: 'active' } })
+        blink.db.project_audits.list({ where: { project_id: projectId, status: 'active' } }),
+        blink.db.project_messages.count({ where: { project_id: projectId } })
       ]);
       setReviews(r);
       setAudits(a);
+      setMessageCount(m);
     } catch (error) {
       console.error('Error fetching interactions:', error);
     } finally {
@@ -103,6 +107,9 @@ export function ProjectInteractions({ projectId, projectTitle = '', projectDescr
           <TabsTrigger value="reviews" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Star className="h-4 w-4" /> Reviews ({reviews.length})
           </TabsTrigger>
+          <TabsTrigger value="chat" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <MessageCircle className="h-4 w-4" /> Chat ({messageCount})
+          </TabsTrigger>
           <TabsTrigger value="visuals" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <LayoutTemplate className="h-4 w-4" /> Visuals
           </TabsTrigger>
@@ -120,6 +127,10 @@ export function ProjectInteractions({ projectId, projectTitle = '', projectDescr
             projectTitle={projectTitle} 
             projectDescription={projectDescription} 
           />
+        </TabsContent>
+
+        <TabsContent value="chat">
+          <ProjectChat projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="reviews" className="space-y-6">
