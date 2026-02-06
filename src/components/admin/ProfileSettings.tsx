@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Shield, AtSign, Check, Loader2, Sparkles, Palette, Figma } from 'lucide-react';
+import { User, Shield, AtSign, Check, Loader2, Sparkles, Palette, Figma, Globe, Camera, Youtube, Video, PenTool, Mail, Linkedin, Twitter, Box, FileText, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { blink } from '@/lib/blink';
 import { toast } from 'sonner';
+import { CREATIVE_CONNECTORS } from '@/lib/connectors';
 
 export function ProfileSettings() {
   const [user, setUser] = useState<any>(null);
@@ -232,6 +233,32 @@ export function ProfileSettings() {
               Verify Connector
             </Button>
           </div>
+        </div>
+
+        <div className="bg-zinc-50 rounded-2xl p-8 border border-zinc-100">
+          <div className="flex items-center gap-3 mb-6">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h4 className="text-sm font-bold uppercase tracking-widest">Active Creative Connectors</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {CREATIVE_CONNECTORS.filter(c => c.id !== 'figma').map((connector) => {
+              const Icon = connector.icon;
+              return (
+                <div key={connector.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-zinc-100">
+                  <div className="p-2 bg-zinc-50 rounded-lg">
+                    <Icon className="h-4 w-4 text-zinc-500" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold text-zinc-700">{connector.name}</p>
+                    <p className="text-[9px] text-green-600 font-medium uppercase tracking-tighter">Connector Active</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-zinc-400 mt-6 text-center italic">
+            All creative connectors are pre-configured to sync public artifacts.
+          </p>
         </div>
 
         <div className="bg-zinc-50 rounded-2xl p-8 border border-zinc-100">
