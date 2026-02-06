@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Briefcase, Star, MessageSquare, Mail, Activity } from 'lucide-react';
+import { X, Plus, Briefcase, Star, MessageSquare, Mail, Activity, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import { TestimonialManager } from './admin/TestimonialManager';
 import { InquiryList } from './admin/InquiryList';
 import { NewsletterList } from './admin/NewsletterList';
 import { AnalyticsDashboard } from './admin/AnalyticsDashboard';
+import { InteractionManager } from './admin/InteractionManager';
 
 export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolean, onClose: () => void, onProjectAdded: () => void }) {
   const [activeTab, setActiveTab] = useState('intake');
@@ -96,6 +97,7 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                   <TabsList className="bg-zinc-100 p-1 rounded-full border">
                     <TabsTrigger value="intake" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Plus className="h-4 w-4" /> Project Intake</TabsTrigger>
                     <TabsTrigger value="projects" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Briefcase className="h-4 w-4" /> Library</TabsTrigger>
+                    <TabsTrigger value="interactions" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Repeat className="h-4 w-4" /> Interactions</TabsTrigger>
                     <TabsTrigger value="testimonials" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Star className="h-4 w-4" /> Reviews</TabsTrigger>
                     <TabsTrigger value="inquiries" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><MessageSquare className="h-4 w-4" /> Inquiries</TabsTrigger>
                     <TabsTrigger value="newsletter" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Mail className="h-4 w-4" /> Subscribers</TabsTrigger>
@@ -122,6 +124,10 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                       onProjectAdded();
                     }} 
                   />
+                </TabsContent>
+
+                <TabsContent value="interactions" className="flex-1 overflow-auto">
+                  <InteractionManager projects={projects} />
                 </TabsContent>
 
                 <TabsContent value="testimonials" className="flex-1 overflow-auto">

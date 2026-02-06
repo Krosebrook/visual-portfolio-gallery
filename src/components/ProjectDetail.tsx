@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, User, Tag, ArrowRight, Github, Globe, ExternalLink, Code, Layers, Sparkles, Box, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TheDot } from './ui/TheDot';
+import { ProjectInteractions } from './ProjectInteractions';
 import { blink } from '@/lib/blink';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stage, useGLTF, Environment } from '@react-three/drei';
@@ -320,6 +321,9 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
                   </div>
                 </div>
               )}
+
+              {/* Interactions Section */}
+              <ProjectInteractions projectId={project.id} />
             </div>
 
             {/* Actions */}
