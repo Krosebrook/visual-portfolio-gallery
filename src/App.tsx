@@ -8,6 +8,7 @@ import { Mail, ArrowRight, Settings, LogOut, User as UserIcon, Menu, Github, Lin
 import { Button } from '@/components/ui/button';
 import { Toaster, toast } from 'sonner';
 import { AdminPanel } from './components/AdminPanel';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { blink } from './lib/blink';
 import { useEffect, useState, useRef } from 'react';
 import { LibraryHero } from './components/LibraryHero';
@@ -72,14 +73,15 @@ function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={onAdminOpen}
-                className="rounded-full hover:bg-primary/10 hover:text-primary"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
+              <Link to="/admin">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full hover:bg-primary/10 hover:text-primary"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Link>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -92,7 +94,7 @@ function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
           ) : (
             <Button 
               variant="default" 
-              onClick={() => blink.auth.login()}
+              onClick={() => blink.auth.login(window.location.origin + '/admin')}
               className="rounded-full px-6 font-bold uppercase text-xs tracking-widest h-10 shadow-lg shadow-primary/20"
             >
               Sign In
@@ -224,6 +226,7 @@ function Footer() {
             <TheDot size="sm" className="mb-1" />
           </div>
           <div className="flex gap-10 text-[11px] uppercase tracking-widest font-bold text-zinc-500">
+            <Link to="/admin" className="hover:text-white transition-colors">Dashboard</Link>
             <a href="#" className="hover:text-white transition-colors">Terms</a>
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Security</a>
@@ -276,6 +279,7 @@ function Home({ onAdminOpen, refreshKey }: { onAdminOpen: () => void, refreshKey
 export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [prevUser, setPrevUser] = useState<any>(null);
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -284,6 +288,17 @@ export default function App() {
   });
 
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    return blink.auth.onAuthStateChanged(({ user, isAuthenticated }) => {
+      if (isAuthenticated && !prevUser && user) {
+        toast.success(`Welcome back, ${user.displayName || 'Admin'}!`, {
+          description: "Your session is active and you're ready to manage your library.",
+        });
+      }
+      setPrevUser(user);
+    });
+  }, [prevUser]);
 
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -307,6 +322,21 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home onAdminOpen={() => setIsAdminOpen(true)} refreshKey={refreshKey} />} />
         <Route path="/u/:username" element={<Home onAdminOpen={() => setIsAdminOpen(true)} refreshKey={refreshKey} />} />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <div className="pt-24 min-h-screen bg-zinc-50/50">
+                <AdminPanel 
+                  isOpen={true} 
+                  onClose={() => window.location.href = '/'} 
+                  onProjectAdded={() => setRefreshKey(prev => prev + 1)}
+                  isPage={true}
+                />
+              </div>
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/proofing/:projectId" element={<ProofingPortal />} />
       </Routes>
 
@@ -333,11 +363,13 @@ export default function App() {
       </AnimatePresence>
 
       <Toaster position="bottom-right" richColors />
-      <AdminPanel 
-        isOpen={isAdminOpen} 
-        onClose={() => setIsAdminOpen(false)} 
-        onProjectAdded={() => setRefreshKey(prev => prev + 1)} 
-      />
+      {!window.location.pathname.startsWith('/admin') && (
+        <AdminPanel 
+          isOpen={isAdminOpen} 
+          onClose={() => setIsAdminOpen(false)} 
+          onProjectAdded={() => setRefreshKey(prev => prev + 1)} 
+        />
+      )}
     </main>
   );
 }

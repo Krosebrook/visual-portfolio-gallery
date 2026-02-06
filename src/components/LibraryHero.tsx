@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TheDot } from './ui/TheDot';
 import { PressKitGenerator } from './PressKitGenerator';
+import { blink } from '@/lib/blink';
+import { Link } from 'react-router-dom';
 
 export function LibraryHero() {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    return blink.auth.onAuthStateChanged(({ user }) => setUser(user));
+  }, []);
+
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-32 pb-24 px-8 overflow-hidden bg-background">
       {/* Decorative Elements */}
@@ -50,11 +58,22 @@ export function LibraryHero() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="flex flex-col md:flex-row items-center justify-center gap-4"
         >
-          <Button size="lg" className="rounded-full px-8 h-14 text-lg group bg-primary hover:bg-primary/90">
-            Explore Collection
-            <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
-          </Button>
-          <PressKitGenerator />
+          <a href="#collection">
+            <Button size="lg" className="rounded-full px-8 h-14 text-lg group bg-primary hover:bg-primary/90">
+              Explore Collection
+              <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </a>
+          {user ? (
+            <Link to="/admin">
+              <Button size="lg" variant="outline" className="rounded-full px-8 h-14 text-lg border-primary/20 hover:bg-primary/5 text-primary">
+                <LayoutDashboard className="mr-2 w-5 h-5" />
+                Go to Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <PressKitGenerator />
+          )}
         </motion.div>
       </div>
 

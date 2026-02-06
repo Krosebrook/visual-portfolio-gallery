@@ -16,7 +16,17 @@ import { InteractionManager } from './admin/InteractionManager';
 import { ProfileSettings } from './admin/ProfileSettings';
 import { User as UserIcon } from 'lucide-react';
 
-export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolean, onClose: () => void, onProjectAdded: () => void }) {
+export function AdminPanel({ 
+  isOpen, 
+  onClose, 
+  onProjectAdded,
+  isPage = false 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onProjectAdded: () => void,
+  isPage?: boolean
+}) {
   const [activeTab, setActiveTab] = useState('intake');
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -67,19 +77,21 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div className={`fixed inset-0 z-[110] flex items-center justify-center ${isPage ? 'p-0' : 'p-4'}`}>
+          {!isPage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
+            />
+          )}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+            initial={isPage ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className="relative w-full max-w-6xl h-[90vh] bg-background rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden flex flex-col"
+            exit={isPage ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 10 }}
+            className={`relative w-full ${isPage ? 'max-w-none h-full rounded-none' : 'max-w-6xl h-[90vh] rounded-2xl'} bg-background border-zinc-200 shadow-2xl overflow-hidden flex flex-col ${!isPage ? 'border' : ''}`}
           >
             {/* Header */}
             <div className="flex justify-between items-center px-8 py-6 border-b bg-zinc-50/50">

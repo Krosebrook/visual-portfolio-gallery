@@ -114,7 +114,7 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
     setLoading(true);
     try {
       const user = await blink.auth.me();
-      if (!user) return blink.auth.login();
+      if (!user) return blink.auth.login(window.location.origin + '/admin');
 
       await blink.db.projects.create({ 
         ...projectForm, 

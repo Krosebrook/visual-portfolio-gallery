@@ -29,7 +29,7 @@ export function TestimonialManager({ testimonials, onRefresh }: TestimonialManag
     setLoading(true);
     try {
       const user = await blink.auth.me();
-      if (!user) return blink.auth.login();
+      if (!user) return blink.auth.login(window.location.origin + '/admin');
 
       await blink.db.testimonials.create({ ...form, userId: user.id });
       toast.success('Testimonial added');
