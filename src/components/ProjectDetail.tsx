@@ -75,9 +75,28 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loadingMilestones, setLoadingMilestones] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewStartTime = useRef<number>(0);
+  const viewId = useRef<string | null>(null);
 
   useEffect(() => {
     if (project) {
+      viewStartTime.current = Date.now();
+      viewId.current = crypto.randomUUID();
+      
+      // Initial view log in custom table
+      const logInitialView = async () => {
+        try {
+          const user = await blink.db.users.get((await blink.auth.me())?.id || 'public');
+          await blink.db.project_views.create({
+            id: viewId.current!,
+            project_id: project.id,
+            user_id: user?.id || 'public_visitor',
+            view_duration: 0
+          });
+        } catch (e) { console.error(e); }
+      };
+      logInitialView();
+
       // SEO & Metadata
       const previousTitle = document.title;
       document.title = `${project.title} | Archive Visual Portfolio`;
@@ -105,6 +124,13 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
       updateOgTag('og:url', window.location.href);
 
       return () => {
+        // Track duration on unmount
+        const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+        if (viewId.current) {
+          blink.db.project_views.update(viewId.current, { view_duration: duration })
+            .catch(console.error);
+        }
+
         document.title = previousTitle;
         if (metaDescription && originalDescription) {
           metaDescription.setAttribute('content', originalDescription);
@@ -157,6 +183,20 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
     );
+  };
+
+  const handleLinkClick = async (type: 'demo' | 'github') => {
+    if (!project) return;
+    try {
+      const user = await blink.auth.me();
+      await blink.db.project_clicks.create({
+        id: crypto.randomUUID(),
+        project_id: project.id,
+        user_id: user?.id || 'public_visitor',
+        click_type: type
+      });
+      blink.analytics.log('project_click', { projectId: project.id, type });
+    } catch (e) { console.error(e); }
   };
 
   return (
@@ -286,14 +326,23 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
             <div className="space-y-4 pt-4">
               <div className="flex gap-4">
                 {project.githubUrl && (
-                  <Button variant="outline" className="flex-1 rounded-xl h-14 font-bold gap-2 border-zinc-200" asChild>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 rounded-xl h-14 font-bold gap-2 border-zinc-200" 
+                    asChild
+                    onClick={() => handleLinkClick('github')}
+                  >
                     <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                       <Github className="h-5 w-5" /> Repository
                     </a>
                   </Button>
                 )}
                 {project.demoUrl && (
-                  <Button className="flex-1 rounded-xl h-14 font-bold gap-2 shadow-xl shadow-primary/20" asChild>
+                  <Button 
+                    className="flex-1 rounded-xl h-14 font-bold gap-2 shadow-xl shadow-primary/20" 
+                    asChild
+                    onClick={() => handleLinkClick('demo')}
+                  >
                     <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
                       <Globe className="h-5 w-5" /> Live Demo
                     </a>

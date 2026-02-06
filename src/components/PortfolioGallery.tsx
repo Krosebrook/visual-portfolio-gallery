@@ -103,6 +103,15 @@ export function PortfolioGallery() {
     return filtered;
   }, [visibleProjects, activeCategory, searchQuery]);
 
+  const handleProjectSelect = (project: Project) => {
+    setSelectedProject(project);
+    blink.analytics.log('project_view', { 
+      projectId: project.id, 
+      projectTitle: project.title,
+      category: project.category
+    });
+  };
+
   if (loading) return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
       {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -219,7 +228,7 @@ export function PortfolioGallery() {
                     {project.description}
                   </p>
                   <button 
-                    onClick={() => setSelectedProject(project)}
+                    onClick={() => handleProjectSelect(project)}
                     className="flex items-center gap-2 text-primary font-bold text-sm tracking-widest uppercase group/link"
                   >
                     Learn More 

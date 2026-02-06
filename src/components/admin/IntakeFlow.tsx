@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Github, Globe, Loader2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Github, Globe, Loader2, Sparkles, Image as ImageIcon, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,8 @@ interface IntakeFlowProps {
 
 export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncUrl, setSyncUrl] = useState('');
   const [projectForm, setProjectForm] = useState({ 
     title: '', 
     description: '', 
@@ -127,6 +129,38 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
     }
   };
 
+  const handleExternalSync = async () => {
+    if (!syncUrl) return toast.error('Please provide a Behance or Dribbble URL');
+    setIsSyncing(true);
+    try {
+      const { data, error } = await blink.functions.invoke('behance-sync', {
+        body: { url: syncUrl }
+      });
+      
+      if (error) throw new Error(error);
+      
+      if (data.projects && data.projects.length > 0) {
+        // For simplicity, we just load the first one into the form
+        const project = data.projects[0];
+        setProjectForm(prev => ({
+          ...prev,
+          title: project.title,
+          description: project.description,
+          category: project.category,
+          imageUrl: project.imageUrl,
+          demoUrl: project.demoUrl || syncUrl
+        }));
+        toast.success(`Extracted ${data.projects.length} projects. Loaded the first one.`);
+      } else {
+        toast.error('No projects found at this URL');
+      }
+    } catch (error) {
+      toast.error('Failed to sync external portfolio');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-10">
       <div className="mb-10">
@@ -140,6 +174,30 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div className="space-y-6">
+          <div className="bg-zinc-50 border rounded-2xl p-6 space-y-4">
+            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+              <ExternalLink className="h-3 w-3" /> Sync External Portfolio
+            </label>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Behance / Dribbble URL" 
+                value={syncUrl}
+                onChange={e => setSyncUrl(e.target.value)}
+                className="h-10 bg-white"
+              />
+              <Button 
+                onClick={handleExternalSync} 
+                disabled={isSyncing || loading}
+                className="h-10 px-4"
+                variant="secondary"
+              >
+                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                {isSyncing ? '' : 'Sync'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-zinc-400">Import projects directly from Behance or Dribbble</p>
+          </div>
+
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Source URLs</label>
             <div className="space-y-3">

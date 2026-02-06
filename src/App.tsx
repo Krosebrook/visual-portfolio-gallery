@@ -6,7 +6,7 @@ import { ContactSection } from './components/ContactSection';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import { Mail, ArrowRight, Settings, LogOut, User as UserIcon, Menu, Github, Linkedin, MessageCircle, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { AdminPanel } from './components/AdminPanel';
 import { blink } from './lib/blink';
 import { useEffect, useState, useRef } from 'react';
@@ -108,6 +108,40 @@ function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
 }
 
 function Footer() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    try {
+      // Check if user is logged in to get user_id, otherwise use a generic one or prompt login
+      // For newsletter, we might want it to be public but the DB requires user_id.
+      // Since it's a portfolio, the owner is the one who will see these.
+      // We can use the project owner's user_id if we have it, or just allow public sub.
+      // For now, let's assume we need a user_id. 
+      const currentAuth = await blink.auth.me();
+      const userId = currentAuth?.id || 'public_visitor';
+
+      await blink.db.newsletter_subs.create({
+        email,
+        user_id: userId
+      });
+      toast.success('Thank you for subscribing!');
+      setEmail('');
+    } catch (error: any) {
+      if (error.message?.includes('UNIQUE constraint')) {
+        toast.error('You are already subscribed!');
+      } else {
+        toast.error('Failed to subscribe. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <footer className="py-32 bg-zinc-950 text-white overflow-hidden relative">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-20" />
@@ -161,16 +195,24 @@ function Footer() {
               </div>
               <div>
                 <h4 className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-6">Newsletter</h4>
-                <div className="flex gap-2">
+                <form onSubmit={handleSubscribe} className="flex gap-2">
                   <input 
                     type="email" 
                     placeholder="Email Address" 
-                    className="bg-white/5 border border-white/10 rounded-full px-5 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-white/5 border border-white/10 rounded-full px-5 py-2 text-sm focus:outline-none focus:border-primary transition-colors flex-1"
                   />
-                  <Button size="icon" className="rounded-full w-10 h-10">
+                  <Button 
+                    type="submit" 
+                    size="icon" 
+                    disabled={loading}
+                    className="rounded-full w-10 h-10 bg-primary hover:bg-primary/90 text-white"
+                  >
                     <ArrowRight className="h-4 w-4" />
                   </Button>
-                </div>
+                </form>
               </div>
             </div>
           </div>

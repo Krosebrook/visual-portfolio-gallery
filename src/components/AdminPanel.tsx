@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Briefcase, Star, MessageSquare } from 'lucide-react';
+import { X, Plus, Briefcase, Star, MessageSquare, Mail, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -10,6 +10,8 @@ import { IntakeFlow } from './admin/IntakeFlow';
 import { ProjectManager } from './admin/ProjectManager';
 import { TestimonialManager } from './admin/TestimonialManager';
 import { InquiryList } from './admin/InquiryList';
+import { NewsletterList } from './admin/NewsletterList';
+import { AnalyticsDashboard } from './admin/AnalyticsDashboard';
 
 export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolean, onClose: () => void, onProjectAdded: () => void }) {
   const [activeTab, setActiveTab] = useState('intake');
@@ -17,18 +19,27 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
   const [projects, setProjects] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [newsletterSubs, setNewsletterSubs] = useState<any[]>([]);
+  const [projectViews, setProjectViews] = useState<any[]>([]);
+  const [projectClicks, setProjectClicks] = useState<any[]>([]);
 
   // Fetch Data
   const fetchData = async () => {
     try {
-      const [p, t, i] = await Promise.all([
+      const [p, t, i, n, v, c] = await Promise.all([
         blink.db.projects.list(),
         blink.db.testimonials.list(),
-        blink.db.inquiries.list()
+        blink.db.inquiries.list(),
+        blink.db.newsletter_subs.list(),
+        blink.db.project_views.list(),
+        blink.db.project_clicks.list()
       ]);
       setProjects(p);
       setTestimonials(t);
       setInquiries(i);
+      setNewsletterSubs(n);
+      setProjectViews(v);
+      setProjectClicks(c);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -38,7 +49,7 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
     if (isOpen) fetchData();
   }, [isOpen]);
 
-  const deleteItem = async (type: 'projects' | 'testimonials' | 'inquiries', id: string) => {
+  const deleteItem = async (type: 'projects' | 'testimonials' | 'inquiries' | 'newsletter_subs', id: string) => {
     if (!confirm('Are you sure?')) return;
     try {
       await blink.db[type].delete(id);
@@ -87,6 +98,8 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                     <TabsTrigger value="projects" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Briefcase className="h-4 w-4" /> Library</TabsTrigger>
                     <TabsTrigger value="testimonials" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Star className="h-4 w-4" /> Reviews</TabsTrigger>
                     <TabsTrigger value="inquiries" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><MessageSquare className="h-4 w-4" /> Inquiries</TabsTrigger>
+                    <TabsTrigger value="newsletter" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Mail className="h-4 w-4" /> Subscribers</TabsTrigger>
+                    <TabsTrigger value="analytics" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Activity className="h-4 w-4" /> Analytics</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -122,6 +135,21 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                   <InquiryList 
                     inquiries={inquiries} 
                     onDelete={(id) => deleteItem('inquiries', id)} 
+                  />
+                </TabsContent>
+
+                <TabsContent value="newsletter" className="flex-1 overflow-auto">
+                  <NewsletterList 
+                    subscriptions={newsletterSubs} 
+                    onDelete={(id) => deleteItem('newsletter_subs', id)} 
+                  />
+                </TabsContent>
+
+                <TabsContent value="analytics" className="flex-1 overflow-auto">
+                  <AnalyticsDashboard 
+                    projects={projects} 
+                    views={projectViews} 
+                    clicks={projectClicks} 
                   />
                 </TabsContent>
               </Tabs>

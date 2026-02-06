@@ -46,6 +46,12 @@ export function ContactSection() {
         userId: userId,
       });
 
+      blink.analytics.log('inquiry_submitted', {
+        name: data.name,
+        email: data.email,
+        subject: data.subject
+      });
+
       toast.success('Archive request sent successfully!');
       form.reset();
     } catch (error) {

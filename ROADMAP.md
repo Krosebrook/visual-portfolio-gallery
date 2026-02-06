@@ -87,27 +87,27 @@ This document outlines the strategic roadmap for the next 16 feature implementat
 
 ---
 
-### Phase 4: Growth & Expansion
+### Phase 4: Growth & Expansion [COMPLETED]
 *Focus: Marketing and scalability.*
 
-#### 13. Newsletter/Substack Integration
+#### 13. Newsletter/Substack Integration [DONE]
 - **Spec**: "Subscribe for Updates" form in footer/modal.
-- **Implementation**: Webhook to ConvertKit/Mailchimp or simple email collection in `newsletter_subs` table.
+- **Implementation**: Email collection in `newsletter_subs` table. Admin list view.
 - **Marketing**: Build an audience owned by the creator.
 
-#### 14. Downloadable Press Kit (PDF)
+#### 14. Downloadable Press Kit (PDF) [DONE]
 - **Spec**: Button to generate a PDF summary of selected projects.
-- **Implementation**: `react-pdf` to generate resume/portfolio one-pager on the fly.
+- **Implementation**: `jspdf` and `html2canvas` to generate portfolio one-pager on the fly.
 - **Professionalism**: Ready for agencies/recruiters.
 
-#### 15. Behance/Dribbble Sync
+#### 15. Behance/Dribbble Sync [DONE]
 - **Spec**: "Import from Behance" button in Admin.
-- **Implementation**: Edge function to scrape/fetch external portfolio items and seed `projects` DB.
+- **Implementation**: Edge function `behance-sync` to fetch external portfolio items and extract via AI.
 - **Convenience**: Single source of truth.
 
-#### 16. Advanced Analytics Dashboard
+#### 16. Advanced Analytics Dashboard [DONE]
 - **Spec**: Detailed breakdown of which projects get the most dwell time and clicks.
-- **Implementation**: `blink.analytics` custom events on slide change and expand. Admin chart visualization.
+- **Implementation**: Custom `project_views` and `project_clicks` tables + `blink.analytics`. Admin chart visualization via `recharts`.
 - **Insight**: Know what work resonates.
 
 ---

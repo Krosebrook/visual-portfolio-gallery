@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TheDot } from './ui/TheDot';
+import { PressKitGenerator } from './PressKitGenerator';
 
 export function LibraryHero() {
   return (
@@ -53,9 +54,7 @@ export function LibraryHero() {
             Explore Collection
             <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
           </Button>
-          <Button size="lg" variant="outline" className="rounded-full px-8 h-14 text-lg border-primary/20 hover:bg-primary/5">
-            About The Library
-          </Button>
+          <PressKitGenerator />
         </motion.div>
       </div>
 
