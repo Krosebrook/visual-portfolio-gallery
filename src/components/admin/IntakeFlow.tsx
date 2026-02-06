@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Github, Globe, Loader2, Sparkles, Image as ImageIcon, ExternalLink, RefreshCw, Figma, ChevronRight, Search } from 'lucide-react';
+import { Github, Globe, Loader2, Sparkles, Image as ImageIcon, ExternalLink, RefreshCw, Figma, ChevronRight, Search, FileCode, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,9 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncUrl, setSyncUrl] = useState('');
+  const [deployedUrl, setDeployedUrl] = useState('');
+  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [isAuditing, setIsAuditing] = useState(false);
   const [selectedConnector, setSelectedConnector] = useState<CreativeArtifact>(CREATIVE_CONNECTORS[0]);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -30,7 +33,9 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
     mediaType: 'image' as 'image' | 'video' | '3d',
     videoUrl: '',
     modelUrl: '',
-    tags: ''
+    tags: '',
+    auditData: null as any, // To store audit results temporarily
+    zipUrl: '' // To store the uploaded zip file URL
   });
 
   const handleImageUpload = async (file: File) => {
@@ -60,31 +65,52 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
   };
 
   const handleIntakeGeneration = async () => {
-    if (!projectForm.githubUrl && !projectForm.demoUrl) {
-      return toast.error('Please provide a URL to analyze');
+    if (!projectForm.githubUrl && !projectForm.demoUrl && !zipFile) {
+      return toast.error('Please provide a URL or ZIP file to analyze');
     }
 
     setIsGenerating(true);
+    let uploadedZipUrl = '';
+
     try {
+      if (zipFile) {
+        toast.info('Uploading source archive...');
+        const { publicUrl } = await blink.storage.upload(
+          zipFile,
+          `archives/${Date.now()}-${zipFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+        );
+        uploadedZipUrl = publicUrl;
+      }
+
+      let analysisPrompt = `Analyze this project. `;
+      if (projectForm.githubUrl) analysisPrompt += `GitHub URL: ${projectForm.githubUrl}. `;
+      if (projectForm.demoUrl) analysisPrompt += `Live Demo URL: ${projectForm.demoUrl}. `;
+      if (uploadedZipUrl) analysisPrompt += `A ZIP file archive is available at: ${uploadedZipUrl}. `;
+
       const result = await blink.ai.generateObject({
         schema: {
-          title: 'string',
-          description: 'string',
-          category: 'string',
-          suggestedImagePrompt: 'string',
-          mediaType: 'string',
-          videoUrl: 'string',
-          tags: 'string[]'
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            category: { type: 'string' },
+            suggestedImagePrompt: { type: 'string' },
+            mediaType: { type: 'string', enum: ['image', 'video', '3d'] },
+            videoUrl: { type: 'string' },
+            tags: { type: 'array', items: { type: 'string' } },
+            technicalDetails: { type: 'string' }
+          },
+          required: ['title', 'description', 'category', 'suggestedImagePrompt', 'mediaType', 'tags']
         },
-        prompt: `Analyze this project URL: ${projectForm.githubUrl || projectForm.demoUrl}. 
-        Provide a professional title, a compelling 3-sentence description for a visual library, 
-        and a broad category (e.g., Technology, Design, Fintech, Social). 
+        prompt: `${analysisPrompt} 
+        Provide a complete, comprehensive, professional-grade portfolio entry.
+        Include a professional title, a compelling 3-5 sentence description, 
+        and a specific category. 
         Also suggest a DALL-E style prompt for a high-quality abstract background image representing this project.
-        Determine if this project would benefit from a video showcase (if it's an app or highly interactive) and suggest a media type ('image', 'video').
-        Provide 3-5 relevant descriptive tags (e.g., "Minimalist", "React", "Visual", "Data-driven").`
+        Provide 5-8 relevant descriptive tags.`
       });
 
-      const { title, description, category, suggestedImagePrompt, mediaType, videoUrl, tags } = result as any;
+      const { title, description, category, suggestedImagePrompt, mediaType, videoUrl, tags } = result.object as any;
 
       const images = await blink.ai.generateImage({
         prompt: suggestedImagePrompt + " -- High quality, architectural, clean, professional aesthetic.",
@@ -99,15 +125,62 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
         imageUrl: images[0],
         mediaType: mediaType || 'image',
         videoUrl: videoUrl || '',
-        tags: Array.isArray(tags) ? tags.join(', ') : ''
+        tags: Array.isArray(tags) ? tags.join(', ') : '',
+        zipUrl: uploadedZipUrl // Store the zip URL
       }));
 
       toast.success('Project assets generated successfully!');
+      
+      // Auto-Audit
+      await handleProjectAudit(title, description, category, tags);
     } catch (error) {
       toast.error('Failed to generate assets');
       console.error(error);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleProjectAudit = async (title: string, description: string, category: string, tags: string[]) => {
+    setIsAuditing(true);
+    try {
+      const auditResult = await blink.ai.generateObject({
+        schema: {
+          type: 'object',
+          properties: {
+            score: { type: 'number' },
+            findings: { type: 'string' },
+            recommendations: { type: 'string' },
+            auditType: { type: 'string' }
+          },
+          required: ['score', 'findings', 'recommendations', 'auditType']
+        },
+        prompt: `Audit this portfolio entry based on current best practices for professional galleries.
+        Title: ${title}
+        Description: ${description}
+        Category: ${category}
+        Tags: ${tags.join(', ')}
+        
+        Provide a quality score (0-100), key findings, and specific recommendations for improvement.`
+      });
+
+      const { score, findings, recommendations, auditType } = auditResult.object as any;
+      
+      // We will save this audit after the project is created, 
+      // but for now we'll store it in state or just toast it.
+      // Since project doesn't have ID yet, we'll wait for createProject to save it if possible,
+      // or just show it to the user.
+      toast.info(`Portfolio Audit Score: ${score}/100. Check System Insights for details.`);
+      
+      setProjectForm(prev => ({
+        ...prev,
+        auditData: { score, findings, recommendations, auditType }
+      } as any));
+
+    } catch (error) {
+      console.error('Audit failed:', error);
+    } finally {
+      setIsAuditing(false);
     }
   };
 
@@ -118,13 +191,31 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
       const user = await blink.auth.me();
       if (!user) return blink.auth.login(window.location.origin + '/admin');
 
-      await blink.db.projects.create({ 
+      const project = await blink.db.projects.create({ 
         ...projectForm, 
         userId: user.id,
-        tags: projectForm.tags // Ensure tags are sent
+        tags: projectForm.tags,
+        zipUrl: projectForm.zipUrl // Ensure zipUrl is included
       });
-      toast.success('Project added to library');
-      setProjectForm({ title: '', description: '', category: '', imageUrl: '', githubUrl: '', demoUrl: '', mediaType: 'image', videoUrl: '', modelUrl: '', tags: '' });
+
+      // Save audit if available
+      const auditData = (projectForm as any).auditData;
+      if (auditData) {
+        await blink.db.project_audits.create({
+          project_id: project.id,
+          audit_type: auditData.auditType || 'Professional Portfolio Audit',
+          score: auditData.score,
+          findings: auditData.findings,
+          recommendations: auditData.recommendations,
+          user_id: user.id
+        });
+      }
+
+      toast.success('Project added to library with professional audit');
+      setProjectForm({ title: '', description: '', category: '', imageUrl: '', githubUrl: '', demoUrl: '', mediaType: 'image', videoUrl: '', modelUrl: '', tags: '', auditData: null, zipUrl: '' });
+      setZipFile(null);
+      setSyncUrl('');
+      setDeployedUrl('');
       onProjectAdded();
     } catch (error) {
       toast.error('Failed to archive project');
@@ -134,6 +225,21 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
   };
 
   const handleExternalSync = async () => {
+    if (selectedConnector.id === 'github') {
+      if (!syncUrl && !zipFile && !deployedUrl) {
+        return toast.error('Please provide a repository URL, ZIP file, or Deployed URL');
+      }
+      
+      setProjectForm(prev => ({
+        ...prev,
+        githubUrl: syncUrl || prev.githubUrl,
+        demoUrl: deployedUrl || prev.demoUrl
+      }));
+      
+      await handleIntakeGeneration();
+      return;
+    }
+
     if (!syncUrl) return toast.error(`Please provide a valid ${selectedConnector.name} identifier`);
     setIsSyncing(true);
     try {
@@ -275,6 +381,34 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
                   {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 </Button>
               </div>
+
+              {selectedConnector.id === 'github' && (
+                <div className="space-y-4 pt-2 border-t border-zinc-100 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Deployed Website URL</label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                      <Input 
+                        placeholder="https://your-project.com" 
+                        value={deployedUrl}
+                        onChange={e => setDeployedUrl(e.target.value)}
+                        className="pl-10 h-10 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Source Archive (ZIP)</label>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="file" 
+                        accept=".zip" 
+                        onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                        className="h-10 bg-white text-xs file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-zinc-100 file:text-zinc-600 hover:file:bg-zinc-200"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="p-3 bg-white border border-zinc-100 rounded-lg">
                 <p className="text-[11px] font-bold text-zinc-600">{selectedConnector.name}</p>
@@ -310,11 +444,11 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
 
           <Button 
             onClick={handleIntakeGeneration} 
-            disabled={isGenerating || loading}
+            disabled={isGenerating || loading || isAuditing}
             className="w-full h-14 rounded-xl text-lg font-bold gap-2 shadow-xl shadow-primary/10"
           >
-            {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            {isGenerating ? 'Analyzing Source...' : 'Generate Library Assets'}
+            {isGenerating || isAuditing ? <Loader2 className="animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            {isGenerating ? 'Analyzing Source...' : isAuditing ? 'Auditing Project...' : 'Generate Library Assets'}
           </Button>
 
           <div className="pt-6 border-t border-zinc-100">
@@ -426,18 +560,22 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
             <p className="text-sm text-zinc-600 leading-relaxed italic">
               {isGenerating 
                 ? "Our AI is currently examining the code structure and live behavior to extract key features..." 
-                : projectForm.title 
-                  ? `Ready to archive "${projectForm.title}". All assets have been curated for visual consistency.`
-                  : "Awaiting project input. We recommend starting with a GitHub URL for best documentation extraction."}
+                : isAuditing
+                  ? "Finalizing professional audit based on industry standards..."
+                  : (projectForm as any).auditData
+                    ? `Audit Complete: Score ${(projectForm as any).auditData.score}/100. Recommendations generated.`
+                    : projectForm.title 
+                      ? `Ready to archive "${projectForm.title}". All assets have been curated for visual consistency.`
+                      : "Awaiting project input. We recommend starting with a GitHub URL for best documentation extraction."}
             </p>
           </div>
 
           <Button 
             onClick={createProject} 
-            disabled={loading || !projectForm.title || !projectForm.imageUrl}
+            disabled={loading || !projectForm.title || !projectForm.imageUrl || isGenerating || isAuditing}
             className="w-full h-14 rounded-xl text-lg font-bold gap-2 bg-zinc-950 hover:bg-zinc-900 shadow-xl shadow-black/5"
           >
-            {loading ? <Loader2 className="animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            {loading || isGenerating || isAuditing ? <Loader2 className="animate-spin" /> : <Sparkles className="h-5 w-5" />}
             Archive to Library
           </Button>
         </div>

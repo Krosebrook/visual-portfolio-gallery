@@ -15,7 +15,8 @@ import {
   FileText,
   Figma,
   LayoutGrid,
-  Laptop
+  Laptop,
+  Github
 } from 'lucide-react';
 
 export interface CreativeArtifact {
@@ -163,5 +164,13 @@ export const CREATIVE_CONNECTORS: CreativeArtifact[] = [
     placeholder: 'notion.so/page-ID',
     description: 'Extract structured project documentation.',
     category: 'Productivity'
+  },
+  {
+    id: 'github',
+    name: 'GitHub',
+    icon: Github,
+    placeholder: 'github.com/username/repo',
+    description: 'Sync repositories, analyze code, and import projects.',
+    category: 'Development'
   }
 ];

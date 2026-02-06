@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Eye, EyeOff, Link as LinkIcon, CheckCircle2, ChevronDown, ChevronUp, Clock, Wand2, Loader2, Sparkles } from 'lucide-react';
+import { Trash2, Eye, EyeOff, Link as LinkIcon, CheckCircle2, ChevronDown, ChevronUp, Clock, Wand2, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
@@ -23,6 +23,7 @@ interface Project {
   category: string;
   visibility: 'public' | 'private';
   tags?: string;
+  zip_url?: string;
 }
 
 interface ProjectManagerProps {
@@ -33,11 +34,64 @@ interface ProjectManagerProps {
 export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [isMagicWriting, setIsMagicWriting] = useState(false);
+  const [isAuditing, setIsAuditing] = useState(false);
   const [magicWriteDialog, setMagicWriteDialog] = useState<{ open: boolean; project: Project | null; content: string }>({
     open: false,
     project: null,
     content: ''
   });
+  const [auditDialog, setAuditDialog] = useState<{ open: boolean; project: Project | null; audit: any }>({
+    open: false,
+    project: null,
+    audit: null
+  });
+
+  const handleManualAudit = async (project: Project) => {
+    setIsAuditing(true);
+    try {
+      const auditResult = await blink.ai.generateObject({
+        schema: {
+          type: 'object',
+          properties: {
+            score: { type: 'number' },
+            findings: { type: 'string' },
+            recommendations: { type: 'string' },
+            auditType: { type: 'string' }
+          },
+          required: ['score', 'findings', 'recommendations', 'auditType']
+        },
+        prompt: `Perform a comprehensive, professional-grade audit for this portfolio project.
+        Title: ${project.title}
+        Description: ${project.description}
+        Category: ${project.category}
+        Tags: ${project.tags}
+        
+        Audit based on modern design standards, storytelling effectiveness, and professional impact. 
+        Provide a score (0-100), key findings, and specific actionable recommendations.`
+      });
+
+      const audit = auditResult.object as any;
+      
+      const user = await blink.auth.me();
+      if (user) {
+        await blink.db.project_audits.create({
+          project_id: project.id,
+          audit_type: audit.auditType || 'Professional Grade Audit',
+          score: audit.score,
+          findings: audit.findings,
+          recommendations: audit.recommendations,
+          user_id: user.id
+        });
+      }
+
+      setAuditDialog({ open: true, project, audit });
+      toast.success('Professional audit completed!');
+    } catch (error) {
+      toast.error('Audit failed');
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   const toggleVisibility = async (project: Project) => {
     try {
@@ -163,6 +217,16 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        onClick={() => handleManualAudit(project)}
+                        disabled={isAuditing}
+                        className="hover:bg-primary/5 hover:text-primary rounded-full"
+                        title="Professional Audit"
+                      >
+                        {isAuditing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         onClick={() => handleMagicWrite(project)}
                         disabled={isMagicWriting}
                         className="hover:bg-primary/5 hover:text-primary rounded-full"
@@ -242,6 +306,50 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
             </Button>
             <Button onClick={saveMagicWrite} className="bg-zinc-900 text-white hover:bg-zinc-800">
               Apply to Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={auditDialog.open} onOpenChange={(open) => setAuditDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              Professional Portfolio Audit
+            </DialogTitle>
+            <DialogDescription>
+              Performance and quality analysis for <strong>{auditDialog.project?.title}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6 space-y-6">
+            <div className="flex items-center justify-center p-8 bg-zinc-50 rounded-2xl border border-zinc-100">
+              <div className="text-center">
+                <div className="text-5xl font-serif font-bold text-zinc-900 mb-2">{auditDialog.audit?.score}%</div>
+                <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">Quality Score</div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Key Findings</h4>
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 text-sm leading-relaxed text-zinc-600">
+                  {auditDialog.audit?.findings}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Recommendations</h4>
+                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 text-sm leading-relaxed text-emerald-900">
+                  {auditDialog.audit?.recommendations}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuditDialog({ open: false, project: null, audit: null })}>
+              Close Audit
             </Button>
           </DialogFooter>
         </DialogContent>
