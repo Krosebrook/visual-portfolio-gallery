@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Quote } from 'lucide-react';
+import { Quote, Star } from 'lucide-react';
 import { blink } from '@/lib/blink';
+import { TheDot } from './ui/TheDot';
 
 interface Testimonial {
   id: string;
@@ -15,20 +16,20 @@ const sampleTestimonials: Testimonial[] = [
   {
     id: '1',
     clientName: 'Elena Richardson',
-    clientRole: 'Creative Director, Vogue',
-    content: "An exceptional eye for detail and a unique perspective that brings every project to life. Working together was a seamless and inspiring experience."
+    clientRole: 'Head of Archives, Digital Heritage',
+    content: "The Visual Library system has redefined how we preserve our technical milestones. The automated asset generation is simply unparalleled in the industry."
   },
   {
     id: '2',
     clientName: 'Marcus Thorne',
-    clientRole: 'CEO, Horizon Tech',
-    content: "The visual storytelling transformed our brand identity. The portfolio gallery is a testament to true craftsmanship and artistic vision."
+    clientRole: 'CTO, Legacy Systems',
+    content: "A masterpiece of digital organization. Every project is archived with such precision that it feels like visiting a physical museum of code and design."
   },
   {
     id: '3',
     clientName: 'Sophie Chen',
-    clientRole: 'Independent Curator',
-    content: "Capturing the essence of urban stillness in a way I've never seen before. A masterful display of photography and design integration."
+    clientRole: 'Founding Partner, Artifacts Co.',
+    content: "The aesthetic matching of intinc.com brings a level of professionalism that makes our internal archives client-ready from day one. Truly exceptional work."
   }
 ];
 
@@ -53,36 +54,50 @@ export function Testimonials() {
   }, []);
 
   return (
-    <section className="py-24 px-8 md:px-16 lg:px-24 bg-background border-t border-white/5">
-      <div className="max-w-6xl mx-auto">
+    <section className="bg-transparent">
+      <div className="max-w-7xl mx-auto">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="mb-16"
+          className="mb-20 text-center"
         >
-          <h2 className="text-4xl md:text-5xl font-serif mb-4">Client Voices</h2>
-          <p className="text-muted-foreground max-w-md">What others say about my creative journey and collaborations.</p>
+          <div className="text-primary font-bold text-[10px] tracking-[0.25em] uppercase mb-4 flex items-center justify-center gap-2">
+            <TheDot size="sm" /> Archive Feedback
+          </div>
+          <h2 className="text-5xl md:text-6xl font-serif font-bold tracking-tighter mb-6">
+            Curator <span className="text-primary italic">Voices</span>
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto text-lg leading-relaxed">
+            Insights from technical leaders and archivists who utilize our visual library for preserving digital legacy.
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.id}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="relative group p-8 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 transition-all duration-500"
+              transition={{ duration: 0.8, delay: index * 0.1 }}
+              className="relative group p-10 rounded-2xl bg-white border border-zinc-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-zinc-200/50 transition-all duration-500"
             >
-              <Quote className="absolute -top-4 -left-4 h-12 w-12 text-primary opacity-20 group-hover:opacity-40 transition-opacity" />
-              <p className="text-lg mb-8 leading-relaxed font-light italic">
+              <div className="flex gap-1 mb-6 text-primary">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
+              </div>
+              <p className="text-zinc-600 text-lg mb-8 leading-relaxed italic font-medium">
                 "{testimonial.content}"
               </p>
-              <div>
-                <h4 className="font-medium text-white">{testimonial.clientName}</h4>
-                <p className="text-sm text-primary/80">{testimonial.clientRole}</p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-zinc-50 border border-zinc-100 flex items-center justify-center font-serif text-primary font-bold text-lg">
+                  {testimonial.clientName.charAt(0)}
+                </div>
+                <div>
+                  <h4 className="font-bold text-zinc-900 leading-none mb-1.5">{testimonial.clientName}</h4>
+                  <p className="text-[11px] uppercase tracking-widest text-zinc-400 font-bold">{testimonial.clientRole}</p>
+                </div>
               </div>
             </motion.div>
           ))}
