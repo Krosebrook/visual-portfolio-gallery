@@ -128,6 +128,7 @@ export function AdminPanel({
                     }}
                     loading={loading}
                     setLoading={setLoading}
+                    onTabChange={setActiveTab}
                   />
                 </TabsContent>
 

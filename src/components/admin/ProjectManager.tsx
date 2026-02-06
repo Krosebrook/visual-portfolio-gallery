@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Trash2, Eye, EyeOff, Link as LinkIcon, CheckCircle2, ChevronDown, ChevronUp, Clock, Wand2, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Trash2, Eye, EyeOff, Link as LinkIcon, ChevronDown, ChevronUp, Clock, Wand2, Loader2, Sparkles, ShieldCheck, Pencil, Save, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Dialog, 
@@ -23,7 +24,12 @@ interface Project {
   category: string;
   visibility: 'public' | 'private';
   tags?: string;
-  zip_url?: string;
+  zipUrl?: string;
+  mediaType?: string;
+  videoUrl?: string;
+  modelUrl?: string;
+  demoUrl?: string;
+  githubUrl?: string;
 }
 
 interface ProjectManagerProps {
@@ -33,8 +39,11 @@ interface ProjectManagerProps {
 
 export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Project>>({});
   const [isMagicWriting, setIsMagicWriting] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [magicWriteDialog, setMagicWriteDialog] = useState<{ open: boolean; project: Project | null; content: string }>({
     open: false,
     project: null,
@@ -45,6 +54,44 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
     project: null,
     audit: null
   });
+
+  const startEditing = (project: Project) => {
+    setEditingProjectId(project.id);
+    setEditForm({
+      title: project.title,
+      description: project.description,
+      category: project.category,
+      tags: project.tags || '',
+      imageUrl: project.imageUrl,
+      mediaType: project.mediaType || 'image',
+      videoUrl: project.videoUrl || '',
+      modelUrl: project.modelUrl || '',
+      demoUrl: project.demoUrl || '',
+      githubUrl: project.githubUrl || '',
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingProjectId(null);
+    setEditForm({});
+  };
+
+  const saveEdits = async () => {
+    if (!editingProjectId) return;
+    setIsSaving(true);
+    try {
+      await blink.db.projects.update(editingProjectId, editForm);
+      toast.success('Project updated successfully!');
+      setEditingProjectId(null);
+      setEditForm({});
+      onRefresh();
+    } catch (error) {
+      toast.error('Failed to save changes');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleManualAudit = async (project: Project) => {
     setIsAuditing(true);
@@ -74,13 +121,13 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
       
       const user = await blink.auth.me();
       if (user) {
-        await blink.db.project_audits.create({
-          project_id: project.id,
-          audit_type: audit.auditType || 'Professional Grade Audit',
+        await blink.db.projectAudits.create({
+          projectId: project.id,
+          auditType: audit.auditType || 'Professional Grade Audit',
           score: audit.score,
           findings: audit.findings,
           recommendations: audit.recommendations,
-          user_id: user.id
+          userId: user.id,
         });
       }
 
@@ -155,8 +202,40 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
     }
   };
 
+  const handleEditImageUpload = async (file: File) => {
+    if (!file) return;
+    try {
+      toast.info('Uploading new image...');
+      const { publicUrl } = await blink.storage.upload(
+        file,
+        `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+      );
+      setEditForm(prev => ({ ...prev, imageUrl: publicUrl }));
+      toast.success('Image uploaded!');
+    } catch (error) {
+      toast.error('Image upload failed');
+    }
+  };
+
+  if (projects.length === 0) {
+    return (
+      <div className="p-8 text-center">
+        <div className="py-20 bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+          <Sparkles className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-zinc-600 mb-2">No projects yet</h3>
+          <p className="text-sm text-zinc-400">Upload files or import from connectors in the Project Intake tab to get started.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-zinc-900">{projects.length} Project{projects.length !== 1 ? 's' : ''} in Library</h3>
+        <p className="text-sm text-zinc-500">Click the edit icon to modify any project. Changes are saved instantly.</p>
+      </div>
+
       <div className="rounded-2xl border overflow-hidden">
         <Table>
           <TableHeader className="bg-zinc-50/50">
@@ -172,7 +251,7 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
           <TableBody>
             {projects.map((project) => (
               <React.Fragment key={project.id}>
-                <TableRow className={expandedProjectId === project.id ? 'bg-zinc-50/50' : ''}>
+                <TableRow className={expandedProjectId === project.id || editingProjectId === project.id ? 'bg-zinc-50/50' : ''}>
                   <TableCell>
                     <Button 
                       variant="ghost" 
@@ -213,7 +292,16 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => editingProjectId === project.id ? cancelEditing() : startEditing(project)}
+                        className={`rounded-full ${editingProjectId === project.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 hover:text-primary'}`}
+                        title="Edit Project"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -257,13 +345,153 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
                         size="icon" 
                         onClick={() => deleteProject(project.id)} 
                         className="hover:bg-destructive/5 hover:text-destructive rounded-full"
+                        title="Delete Project"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-                {expandedProjectId === project.id && (
+
+                {/* Inline Edit Row */}
+                {editingProjectId === project.id && (
+                  <TableRow className="bg-blue-50/30">
+                    <TableCell colSpan={6} className="p-0">
+                      <div className="px-8 py-6 border-t border-blue-100 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                            <Pencil className="h-3.5 w-3.5" /> Editing Project
+                          </h4>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={cancelEditing} className="text-zinc-500">
+                              <X className="h-4 w-4 mr-1" /> Cancel
+                            </Button>
+                            <Button size="sm" onClick={saveEdits} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white">
+                              {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Title</label>
+                              <Input 
+                                value={editForm.title || ''} 
+                                onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description</label>
+                              <Textarea 
+                                value={editForm.description || ''} 
+                                onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                className="bg-white min-h-[100px]"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Category</label>
+                                <Input 
+                                  value={editForm.category || ''} 
+                                  onChange={e => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                                  className="bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Media Type</label>
+                                <select 
+                                  value={editForm.mediaType || 'image'}
+                                  onChange={e => setEditForm(prev => ({ ...prev, mediaType: e.target.value }))}
+                                  className="w-full h-10 px-3 rounded-md bg-white border border-zinc-200 text-sm"
+                                >
+                                  <option value="image">Image</option>
+                                  <option value="video">Video</option>
+                                  <option value="3d">3D Model</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Tags</label>
+                              <Input 
+                                value={editForm.tags || ''} 
+                                onChange={e => setEditForm(prev => ({ ...prev, tags: e.target.value }))}
+                                placeholder="Comma-separated tags"
+                                className="bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Cover Image</label>
+                              <div className="aspect-video bg-zinc-100 rounded-xl overflow-hidden relative group border">
+                                {editForm.imageUrl ? (
+                                  <>
+                                    <img src={editForm.imageUrl} className="w-full h-full object-cover" alt="Cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <Input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        id={`edit-image-${project.id}`}
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleEditImageUpload(file);
+                                        }}
+                                      />
+                                      <Button variant="secondary" size="sm" asChild>
+                                        <label htmlFor={`edit-image-${project.id}`} className="cursor-pointer">
+                                          <ImageIcon className="h-4 w-4 mr-1" /> Replace Image
+                                        </label>
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex items-center justify-center h-full text-zinc-400">
+                                    <ImageIcon className="h-8 w-8" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Image URL</label>
+                              <Input 
+                                value={editForm.imageUrl || ''} 
+                                onChange={e => setEditForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                className="bg-white text-xs"
+                              />
+                            </div>
+                            {(editForm.mediaType === 'video') && (
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Video URL</label>
+                                <Input 
+                                  value={editForm.videoUrl || ''} 
+                                  onChange={e => setEditForm(prev => ({ ...prev, videoUrl: e.target.value }))}
+                                  className="bg-white"
+                                />
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Demo URL</label>
+                              <Input 
+                                value={editForm.demoUrl || ''} 
+                                onChange={e => setEditForm(prev => ({ ...prev, demoUrl: e.target.value }))}
+                                className="bg-white"
+                                placeholder="https://your-project.com"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Milestones Row */}
+                {expandedProjectId === project.id && editingProjectId !== project.id && (
                   <TableRow className="bg-zinc-50/30">
                     <TableCell colSpan={6} className="p-0">
                       <div className="px-12 py-8 border-t border-zinc-100">
@@ -280,6 +508,7 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
         </Table>
       </div>
 
+      {/* Magic Write Dialog */}
       <Dialog open={magicWriteDialog.open} onOpenChange={(open) => setMagicWriteDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -311,6 +540,7 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Audit Dialog */}
       <Dialog open={auditDialog.open} onOpenChange={(open) => setAuditDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
