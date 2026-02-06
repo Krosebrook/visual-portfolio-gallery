@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { Trash2, Eye, EyeOff, Link as LinkIcon, CheckCircle2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Trash2, Eye, EyeOff, Link as LinkIcon, CheckCircle2, ChevronDown, ChevronUp, Clock, Wand2, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { blink } from '@/lib/blink';
 import { MilestoneManager } from './MilestoneManager';
@@ -13,6 +22,7 @@ interface Project {
   imageUrl: string;
   category: string;
   visibility: 'public' | 'private';
+  tags?: string;
 }
 
 interface ProjectManagerProps {
@@ -22,6 +32,12 @@ interface ProjectManagerProps {
 
 export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [isMagicWriting, setIsMagicWriting] = useState(false);
+  const [magicWriteDialog, setMagicWriteDialog] = useState<{ open: boolean; project: Project | null; content: string }>({
+    open: false,
+    project: null,
+    content: ''
+  });
 
   const toggleVisibility = async (project: Project) => {
     try {
@@ -48,6 +64,40 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
       onRefresh();
     } catch (error) {
       toast.error('Delete failed');
+    }
+  };
+
+  const handleMagicWrite = async (project: Project) => {
+    setIsMagicWriting(true);
+    try {
+      const result = await blink.ai.generateText({
+        prompt: `Write a professional and compelling case study description for a design portfolio. 
+        Project Title: ${project.title}
+        Current Brief: ${project.description}
+        Category: ${project.category}
+        
+        The description should be structured with 2-3 short paragraphs covering the Challenge, Solution, and Impact. 
+        Keep the tone elevated, minimal, and professional.`
+      });
+      setMagicWriteDialog({ open: true, project, content: result });
+    } catch (error) {
+      toast.error('AI Generation failed');
+    } finally {
+      setIsMagicWriting(false);
+    }
+  };
+
+  const saveMagicWrite = async () => {
+    if (!magicWriteDialog.project) return;
+    try {
+      await blink.db.projects.update(magicWriteDialog.project.id, { 
+        description: magicWriteDialog.content 
+      });
+      toast.success('Case study updated!');
+      setMagicWriteDialog({ open: false, project: null, content: '' });
+      onRefresh();
+    } catch (error) {
+      toast.error('Failed to save update');
     }
   };
 
@@ -113,6 +163,16 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        onClick={() => handleMagicWrite(project)}
+                        disabled={isMagicWriting}
+                        className="hover:bg-primary/5 hover:text-primary rounded-full"
+                        title="AI Magic Write"
+                      >
+                        {isMagicWriting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         onClick={() => setExpandedProjectId(expandedProjectId === project.id ? null : project.id)}
                         className={`hover:bg-primary/5 hover:text-primary rounded-full ${expandedProjectId === project.id ? 'text-primary bg-primary/5' : ''}`}
                         title="Manage Milestones"
@@ -155,6 +215,37 @@ export function ProjectManager({ projects, onRefresh }: ProjectManagerProps) {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={magicWriteDialog.open} onOpenChange={(open) => setMagicWriteDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI Case Study Generator
+            </DialogTitle>
+            <DialogDescription>
+              Review and refine the AI-generated case study for <strong>{magicWriteDialog.project?.title}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Textarea 
+              value={magicWriteDialog.content}
+              onChange={(e) => setMagicWriteDialog(prev => ({ ...prev, content: e.target.value }))}
+              className="min-h-[300px] bg-zinc-50 border-zinc-200 focus:ring-primary/20"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMagicWriteDialog({ open: false, project: null, content: '' })}>
+              Cancel
+            </Button>
+            <Button onClick={saveMagicWrite} className="bg-zinc-900 text-white hover:bg-zinc-800">
+              Apply to Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

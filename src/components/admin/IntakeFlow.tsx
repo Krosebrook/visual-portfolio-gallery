@@ -23,7 +23,8 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
     demoUrl: '',
     mediaType: 'image' as 'image' | 'video' | '3d',
     videoUrl: '',
-    modelUrl: ''
+    modelUrl: '',
+    tags: ''
   });
 
   const handleImageUpload = async (file: File) => {
@@ -36,8 +37,17 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
       );
       setProjectForm(prev => ({ ...prev, imageUrl: publicUrl }));
       toast.success('Image uploaded!');
+
+      // Vision Analysis for Tagging
+      toast.info('Analyzing image for smart tags...');
+      const visionResult = await blink.ai.generateText({
+        prompt: `Analyze this image URL: ${publicUrl}. 
+        Provide a list of 5 professional descriptive tags (comma-separated) that describe the visual style, colors, and content.
+        Focus on design aesthetics (e.g., "Minimalist", "High-contrast", "Geometric", "Vibrant").`
+      });
+      setProjectForm(prev => ({ ...prev, tags: visionResult }));
     } catch (error) {
-      toast.error('Upload failed');
+      toast.error('Upload or analysis failed');
     } finally {
       setLoading(false);
     }
@@ -57,16 +67,18 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
           category: 'string',
           suggestedImagePrompt: 'string',
           mediaType: 'string',
-          videoUrl: 'string'
+          videoUrl: 'string',
+          tags: 'string[]'
         },
         prompt: `Analyze this project URL: ${projectForm.githubUrl || projectForm.demoUrl}. 
         Provide a professional title, a compelling 3-sentence description for a visual library, 
         and a broad category (e.g., Technology, Design, Fintech, Social). 
         Also suggest a DALL-E style prompt for a high-quality abstract background image representing this project.
-        Determine if this project would benefit from a video showcase (if it's an app or highly interactive) and suggest a media type ('image', 'video').`
+        Determine if this project would benefit from a video showcase (if it's an app or highly interactive) and suggest a media type ('image', 'video').
+        Provide 3-5 relevant descriptive tags (e.g., "Minimalist", "React", "Visual", "Data-driven").`
       });
 
-      const { title, description, category, suggestedImagePrompt, mediaType, videoUrl } = result as any;
+      const { title, description, category, suggestedImagePrompt, mediaType, videoUrl, tags } = result as any;
 
       const images = await blink.ai.generateImage({
         prompt: suggestedImagePrompt + " -- High quality, architectural, clean, professional aesthetic.",
@@ -80,7 +92,8 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
         category,
         imageUrl: images[0],
         mediaType: mediaType || 'image',
-        videoUrl: videoUrl || ''
+        videoUrl: videoUrl || '',
+        tags: Array.isArray(tags) ? tags.join(', ') : ''
       }));
 
       toast.success('Project assets generated successfully!');
@@ -99,9 +112,13 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
       const user = await blink.auth.me();
       if (!user) return blink.auth.login();
 
-      await blink.db.projects.create({ ...projectForm, userId: user.id });
+      await blink.db.projects.create({ 
+        ...projectForm, 
+        userId: user.id,
+        tags: projectForm.tags // Ensure tags are sent
+      });
       toast.success('Project added to library');
-      setProjectForm({ title: '', description: '', category: '', imageUrl: '', githubUrl: '', demoUrl: '', mediaType: 'image', videoUrl: '', modelUrl: '' });
+      setProjectForm({ title: '', description: '', category: '', imageUrl: '', githubUrl: '', demoUrl: '', mediaType: 'image', videoUrl: '', modelUrl: '', tags: '' });
       onProjectAdded();
     } catch (error) {
       toast.error('Failed to archive project');
@@ -219,6 +236,15 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading }: IntakeFlowPr
                 onChange={e => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
                 className="bg-zinc-50 border-zinc-200 min-h-[120px]"
               />
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Smart Tags (comma separated)</label>
+                <Input 
+                  placeholder="e.g. React, Minimalist, Data" 
+                  value={projectForm.tags}
+                  onChange={e => setProjectForm(prev => ({ ...prev, tags: e.target.value }))}
+                  className="bg-zinc-50 border-zinc-200"
+                />
+              </div>
             </div>
           </div>
         </div>

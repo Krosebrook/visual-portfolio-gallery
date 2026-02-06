@@ -3,8 +3,8 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { PortfolioGallery } from './components/PortfolioGallery';
 import { Testimonials } from './components/Testimonials';
 import { ContactSection } from './components/ContactSection';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { Mail, ArrowRight, Settings, LogOut, User as UserIcon, Menu, Github, Linkedin, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
+import { Mail, ArrowRight, Settings, LogOut, User as UserIcon, Menu, Github, Linkedin, MessageCircle, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from 'sonner';
 import { AdminPanel } from './components/AdminPanel';
@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from 'react';
 import { LibraryHero } from './components/LibraryHero';
 import { TheDot } from './components/ui/TheDot';
 import ProofingPortal from './components/ProofingPortal';
+import { HireMeChat } from './components/HireMeChat';
 
 function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
@@ -233,9 +234,32 @@ function Home({ onAdminOpen, refreshKey }: { onAdminOpen: () => void, refreshKey
 export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background selection:bg-primary/10 selection:text-primary">
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-primary z-[100] origin-left"
+        style={{ scaleX }}
+      />
+      
       <Navbar onAdminOpen={() => setIsAdminOpen(true)} />
       
       <Routes>
@@ -244,6 +268,27 @@ export default function App() {
       </Routes>
 
       <Footer />
+      <HireMeChat />
+      
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="fixed bottom-8 left-8 z-[100]"
+          >
+            <Button
+              onClick={scrollToTop}
+              size="icon"
+              className="w-12 h-12 rounded-full bg-white border border-zinc-200 text-zinc-950 hover:bg-zinc-50 shadow-xl"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Toaster position="bottom-right" richColors />
       <AdminPanel 
         isOpen={isAdminOpen} 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, User, Tag, ArrowRight, Github, Globe, ExternalLink, Code, Layers, Sparkles, Box, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,6 +74,44 @@ function VideoPlayer({ url }: { url: string }) {
 export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loadingMilestones, setLoadingMilestones] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (project) {
+      // SEO & Metadata
+      const previousTitle = document.title;
+      document.title = `${project.title} | Archive Visual Portfolio`;
+      
+      const metaDescription = document.querySelector('meta[name="description"]');
+      const originalDescription = metaDescription?.getAttribute('content');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', project.description.substring(0, 160));
+      }
+
+      // OG Tags
+      const updateOgTag = (property: string, content: string) => {
+        let tag = document.querySelector(`meta[property="${property}"]`);
+        if (!tag) {
+          tag = document.createElement('meta');
+          tag.setAttribute('property', property);
+          document.head.appendChild(tag);
+        }
+        tag.setAttribute('content', content);
+      };
+
+      updateOgTag('og:title', project.title);
+      updateOgTag('og:description', project.description.substring(0, 160));
+      updateOgTag('og:image', project.imageUrl);
+      updateOgTag('og:url', window.location.href);
+
+      return () => {
+        document.title = previousTitle;
+        if (metaDescription && originalDescription) {
+          metaDescription.setAttribute('content', originalDescription);
+        }
+      };
+    }
+  }, [project]);
 
   useEffect(() => {
     if (project) {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Maximize2, X, ExternalLink, Grid, LayoutTemplate, Filter, ArrowRight, BookOpen, Code, Image as ImageIcon, Box, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, X, ExternalLink, Grid, LayoutTemplate, Filter, ArrowRight, BookOpen, Code, Image as ImageIcon, Box, Play, Search, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { blink } from '@/lib/blink';
 import { ProjectDetail } from './ProjectDetail';
 import { TheDot } from './ui/TheDot';
@@ -17,6 +18,7 @@ interface Project {
   githubUrl?: string;
   demoUrl?: string;
   visibility?: 'public' | 'private';
+  tags?: string;
 }
 
 const SAMPLE_PROJECTS: Project[] = [
@@ -47,6 +49,7 @@ export function PortfolioGallery() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [user, setUser] = useState<any>(null);
 
@@ -82,9 +85,23 @@ export function PortfolioGallery() {
   }, [visibleProjects]);
 
   const filteredProjects = useMemo(() => {
-    if (activeCategory === 'All') return visibleProjects;
-    return visibleProjects.filter(p => p.category === activeCategory);
-  }, [visibleProjects, activeCategory]);
+    let filtered = visibleProjects;
+    
+    if (activeCategory !== 'All') {
+      filtered = filtered.filter(p => p.category === activeCategory);
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(query) || 
+        p.description.toLowerCase().includes(query) ||
+        p.tags?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [visibleProjects, activeCategory, searchQuery]);
 
   if (loading) return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
@@ -104,21 +121,33 @@ export function PortfolioGallery() {
   return (
     <>
       <div className="w-full">
-        {/* Categories Filter */}
-        <div className="flex flex-wrap gap-4 mb-16 border-b border-zinc-100 pb-8">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-                activeCategory === cat 
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                  : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* Search & Categories Filter */}
+        <div className="flex flex-col md:flex-row gap-8 mb-16 border-b border-zinc-100 pb-8 items-start md:items-center">
+          <div className="relative w-full md:w-80 shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <Input 
+              placeholder="Search library..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-12 h-12 rounded-2xl bg-zinc-50 border-zinc-200 focus:bg-white transition-all"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-4 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                  activeCategory === cat 
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                    : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Library Grid */}
@@ -140,7 +169,7 @@ export function PortfolioGallery() {
                     alt={project.title} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute top-4 left-4 flex gap-2">
+                  <div className="absolute top-4 left-4 flex flex-wrap gap-2 max-w-[80%]">
                     <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-zinc-200">
                       {project.category}
                     </span>
@@ -150,6 +179,11 @@ export function PortfolioGallery() {
                         {project.mediaType}
                       </span>
                     )}
+                    {project.tags && project.tags.split(',').map(tag => (
+                      <span key={tag} className="bg-zinc-900/10 backdrop-blur-sm text-zinc-900 px-2 py-1 rounded-full text-[9px] font-medium uppercase tracking-wider border border-white/20">
+                        {tag.trim()}
+                      </span>
+                    ))}
                   </div>
                   {project.visibility === 'private' && (
                     <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-amber-600/20 shadow-lg">
