@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MessageSquare, Lightbulb, ShieldCheck, Send, CheckCircle2 } from 'lucide-react';
+import { Star, MessageSquare, Lightbulb, ShieldCheck, Send, CheckCircle2, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { blink } from '@/lib/blink';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProjectVisualizer } from './ProjectVisualizer';
 
 interface ProjectInteractionsProps {
   projectId: string;
+  projectTitle?: string;
+  projectDescription?: string;
 }
 
-export function ProjectInteractions({ projectId }: ProjectInteractionsProps) {
+export function ProjectInteractions({ projectId, projectTitle = '', projectDescription = '' }: ProjectInteractionsProps) {
   const [reviews, setReviews] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +103,9 @@ export function ProjectInteractions({ projectId }: ProjectInteractionsProps) {
           <TabsTrigger value="reviews" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Star className="h-4 w-4" /> Reviews ({reviews.length})
           </TabsTrigger>
+          <TabsTrigger value="visuals" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <LayoutTemplate className="h-4 w-4" /> Visuals
+          </TabsTrigger>
           <TabsTrigger value="suggestions" className="rounded-full gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Lightbulb className="h-4 w-4" /> Suggestions
           </TabsTrigger>
@@ -107,6 +113,14 @@ export function ProjectInteractions({ projectId }: ProjectInteractionsProps) {
             <ShieldCheck className="h-4 w-4" /> Audits ({audits.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="visuals">
+          <ProjectVisualizer 
+            projectId={projectId} 
+            projectTitle={projectTitle} 
+            projectDescription={projectDescription} 
+          />
+        </TabsContent>
 
         <TabsContent value="reviews" className="space-y-6">
           {/* Review List */}

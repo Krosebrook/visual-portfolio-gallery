@@ -323,7 +323,11 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
               )}
 
               {/* Interactions Section */}
-              <ProjectInteractions projectId={project.id} />
+              <ProjectInteractions 
+                projectId={project.id} 
+                projectTitle={project.title}
+                projectDescription={project.description}
+              />
             </div>
 
             {/* Actions */}

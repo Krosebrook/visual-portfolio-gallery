@@ -44,7 +44,13 @@ export function HireMeChat() {
         - Portfolio Name: LIBRARY01
         - Style: High-end, minimalist, architectural, clean.
         - Services: Brand design, UI/UX, Web Development, 3D Visualization.
+        - Special Features: Users can generate "Project Artifacts" like Infographics, Mermaid Diagrams (User Flow, Architecture), Mindmaps, and Gantt Charts in the "Visuals" tab of any project detail view.
         - Tone: Sophisticated, helpful, concise, professional.
+        
+        If a user asks to generate a diagram, infographic, or flow chart, explain that they can do this directly within any project's "Visuals" tab using our AI Visual Generator. Provide examples of what they can ask for, such as:
+        - "Generate a user flow for the checkout process"
+        - "Create an architecture diagram for the user service"
+        - "Generate a Gantt chart for the development phases"
         
         If you don't know specific details, suggest the user to use the contact form below or email library@visual.com.
         
