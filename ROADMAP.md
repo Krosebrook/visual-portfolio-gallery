@@ -10,7 +10,7 @@ This document outlines the strategic roadmap for the feature implementations, di
 
 ---
 
-## Current Status: [PHASES 1-4 COMPLETED]
+## Current Status: [PHASE 5 IN PROGRESS]
 
 ### Phase 1: Immersion & Content [DONE]
 - ✅ **Video Reel Support**: Multimedia playback for project artifacts.
@@ -38,7 +38,7 @@ This document outlines the strategic roadmap for the feature implementations, di
 
 ---
 
-## Phase 5: Advanced Ecosystem (What's Next)
+## Phase 5: Advanced Ecosystem [IN PROGRESS]
 *Focus: Scaling the platform and deepening integration.*
 
 #### 17. Multi-User "Portfolio Hub" (SaaS)
@@ -56,9 +56,9 @@ This document outlines the strategic roadmap for the feature implementations, di
 - **Implementation**: `react-three-fiber` + `drei` pointer controls.
 - **Wow Factor**: Future-proofing for spatial computing (Vision Pro, etc.).
 
-#### 20. Direct Design-to-Artifact Sync
+#### 20. Direct Design-to-Artifact Sync (Figma)
 - **Spec**: Integration with Figma API to auto-import frames as project images.
-- **Implementation**: Figma Webhook -> Edge Function -> Project Library.
+- **Implementation**: Figma OAuth -> REST API -> Project Library.
 - **Efficiency**: Zero-manual-upload workflow.
 
 ---

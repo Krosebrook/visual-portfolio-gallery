@@ -306,6 +306,7 @@ export default function App() {
       
       <Routes>
         <Route path="/" element={<Home onAdminOpen={() => setIsAdminOpen(true)} refreshKey={refreshKey} />} />
+        <Route path="/u/:username" element={<Home onAdminOpen={() => setIsAdminOpen(true)} refreshKey={refreshKey} />} />
         <Route path="/proofing/:projectId" element={<ProofingPortal />} />
       </Routes>
 

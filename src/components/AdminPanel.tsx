@@ -13,6 +13,8 @@ import { InquiryList } from './admin/InquiryList';
 import { NewsletterList } from './admin/NewsletterList';
 import { AnalyticsDashboard } from './admin/AnalyticsDashboard';
 import { InteractionManager } from './admin/InteractionManager';
+import { ProfileSettings } from './admin/ProfileSettings';
+import { User as UserIcon } from 'lucide-react';
 
 export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolean, onClose: () => void, onProjectAdded: () => void }) {
   const [activeTab, setActiveTab] = useState('intake');
@@ -102,6 +104,7 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                     <TabsTrigger value="inquiries" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><MessageSquare className="h-4 w-4" /> Inquiries</TabsTrigger>
                     <TabsTrigger value="newsletter" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Mail className="h-4 w-4" /> Subscribers</TabsTrigger>
                     <TabsTrigger value="analytics" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><Activity className="h-4 w-4" /> Analytics</TabsTrigger>
+                    <TabsTrigger value="settings" className="gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"><UserIcon className="h-4 w-4" /> Settings</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -157,6 +160,10 @@ export function AdminPanel({ isOpen, onClose, onProjectAdded }: { isOpen: boolea
                     views={projectViews} 
                     clicks={projectClicks} 
                   />
+                </TabsContent>
+
+                <TabsContent value="settings" className="flex-1 overflow-auto">
+                  <ProfileSettings />
                 </TabsContent>
               </Tabs>
             </div>
