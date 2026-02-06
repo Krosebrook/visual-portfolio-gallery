@@ -15,11 +15,16 @@ Transform the current portfolio into a "Visual Library" for personal projects, a
   - Body: Modern Sans (Geist/Inter).
 - **Core Theme**: "The Dot" – Minimalist, detail-oriented, connection-focused.
 
-## MVP v1 Scope
+## MVP v1 Scope [COMPLETED]
 1.  **Rebranded Home**: 100vh Hero section with high-quality background imagery and "The Dot" motifs.
 2.  **Visual Library Grid**: A structured, card-based library view replacing the full-screen gallery.
 3.  **Project Intake Flow**: Updated admin panel to handle project links (GitHub, URLs) and simulation of AI-generated assets (snapshots, overviews).
 4.  **Responsive Detail View**: Enhanced project modal/page with multi-media support (images, videos, milestones).
+
+## Status & Next Steps
+This phase is **Completed**. The project has evolved beyond the initial spec into a full client service platform.
+
+For the current development focus and future plans, please refer to the [ROADMAP.md](./ROADMAP.md).
 
 ## Technical Implementation
 - **Design System**: Update `src/index.css` and `tailwind.config.cjs`.
