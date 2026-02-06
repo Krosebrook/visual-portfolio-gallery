@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Maximize2, X, ExternalLink, Grid, LayoutTemplate, Filter, ArrowRight, BookOpen, Code, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, X, ExternalLink, Grid, LayoutTemplate, Filter, ArrowRight, BookOpen, Code, Image as ImageIcon, Box, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { blink } from '@/lib/blink';
 import { ProjectDetail } from './ProjectDetail';
 import { TheDot } from './ui/TheDot';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Project {
   id: string;
@@ -15,6 +16,7 @@ interface Project {
   mediaType?: 'image' | 'video' | '3d';
   githubUrl?: string;
   demoUrl?: string;
+  visibility?: 'public' | 'private';
 }
 
 const SAMPLE_PROJECTS: Project[] = [
@@ -46,6 +48,11 @@ export function PortfolioGallery() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    return blink.auth.onAuthStateChanged(({ user }) => setUser(user));
+  }, []);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -63,19 +70,34 @@ export function PortfolioGallery() {
     fetchProjects();
   }, []);
 
+  const visibleProjects = useMemo(() => {
+    // If admin (user logged in), show all. Otherwise only public.
+    if (user) return projects;
+    return projects.filter(p => p.visibility !== 'private');
+  }, [projects, user]);
+
   const categories = useMemo(() => {
-    const cats = new Set(projects.map(p => p.category));
+    const cats = new Set(visibleProjects.map(p => p.category));
     return ['All', ...Array.from(cats)];
-  }, [projects]);
+  }, [visibleProjects]);
 
   const filteredProjects = useMemo(() => {
-    if (activeCategory === 'All') return projects;
-    return projects.filter(p => p.category === activeCategory);
-  }, [projects, activeCategory]);
+    if (activeCategory === 'All') return visibleProjects;
+    return visibleProjects.filter(p => p.category === activeCategory);
+  }, [visibleProjects, activeCategory]);
 
   if (loading) return (
-    <div className="py-32 w-full flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="flex flex-col space-y-6">
+          <Skeleton className="aspect-[16/10] w-full rounded-2xl" />
+          <div className="space-y-3 px-4">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-4 w-1/4" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 
@@ -112,18 +134,45 @@ export function PortfolioGallery() {
                 className="group flex flex-col bg-white rounded-2xl border border-zinc-100 overflow-hidden hover:shadow-2xl hover:shadow-zinc-200 transition-all duration-500 h-full"
               >
                 {/* Thumbnail */}
-                <div className="aspect-[16/10] overflow-hidden relative">
+                <div className="aspect-[16/10] overflow-hidden relative group/image">
                   <img 
                     src={project.imageUrl} 
                     alt={project.title} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute top-4 left-4">
+                  <div className="absolute top-4 left-4 flex gap-2">
                     <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-zinc-200">
                       {project.category}
                     </span>
+                    {project.mediaType && project.mediaType !== 'image' && (
+                      <span className="bg-primary text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-primary/20 flex items-center gap-1 shadow-lg shadow-primary/20">
+                        {project.mediaType === 'video' ? <Play className="h-2.5 w-2.5 fill-current" /> : <Box className="h-2.5 w-2.5" />}
+                        {project.mediaType}
+                      </span>
+                    )}
                   </div>
+                  {project.visibility === 'private' && (
+                    <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-amber-600/20 shadow-lg">
+                      Private Archive
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-500" />
+                  
+                  {/* 3D Overlay Effect */}
+                  {project.mediaType === '3d' && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <motion.div 
+                        animate={{ 
+                          rotateY: [0, 10, -10, 0],
+                          rotateX: [0, -10, 10, 0]
+                        }}
+                        transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                        className="w-32 h-32 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center shadow-2xl"
+                      >
+                        <Box className="w-12 h-12 text-white drop-shadow-lg" />
+                      </motion.div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}

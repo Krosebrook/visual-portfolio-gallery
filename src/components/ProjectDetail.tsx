@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, User, Tag, ArrowRight, Github, Globe, ExternalLink, Code, Layers, Sparkles } from 'lucide-react';
+import { X, Calendar, User, Tag, ArrowRight, Github, Globe, ExternalLink, Code, Layers, Sparkles, Box, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TheDot } from './ui/TheDot';
+import { blink } from '@/lib/blink';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Stage, useGLTF, Environment } from '@react-three/drei';
 
 interface Project {
   id: string;
@@ -10,8 +13,19 @@ interface Project {
   description: string;
   imageUrl: string;
   category: string;
+  mediaType?: 'image' | 'video' | '3d';
+  videoUrl?: string;
+  modelUrl?: string;
   githubUrl?: string;
   demoUrl?: string;
+}
+
+interface Milestone {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  milestoneOrder: number;
 }
 
 interface ProjectDetailProps {
@@ -19,8 +33,93 @@ interface ProjectDetailProps {
   onClose: () => void;
 }
 
+function Model({ url }: { url: string }) {
+  const { scene } = useGLTF(url);
+  return <primitive object={scene} scale={0.01} />;
+}
+
+function VideoPlayer({ url }: { url: string }) {
+  const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+  const isVimeo = url.includes('vimeo.com');
+
+  if (isYoutube) {
+    const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+    return (
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}`}
+        className="w-full h-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  }
+
+  if (isVimeo) {
+    const videoId = url.split('/').pop();
+    return (
+      <iframe
+        src={`https://player.vimeo.com/video/${videoId}`}
+        className="w-full h-full border-0"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <video src={url} controls className="w-full h-full object-cover" />
+  );
+}
+
 export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      setLoadingMilestones(true);
+      blink.db.project_milestones.list({
+        where: { project_id: project.id },
+        orderBy: { milestone_order: 'asc' }
+      }).then(data => {
+        setMilestones(data as any);
+      }).finally(() => {
+        setLoadingMilestones(false);
+      });
+    }
+  }, [project]);
+
   if (!project) return null;
+
+  const renderMedia = () => {
+    if (project.mediaType === 'video' && project.videoUrl) {
+      return <VideoPlayer url={project.videoUrl} />;
+    }
+    if (project.mediaType === '3d' && project.modelUrl) {
+      return (
+        <div className="w-full h-full bg-zinc-900 cursor-grab active:cursor-grabbing">
+          <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+            <Suspense fallback={null}>
+              <Stage intensity={0.5} environment="city" adjustCamera intensity={1}>
+                <Model url={project.modelUrl} />
+              </Stage>
+              <OrbitControls makeDefault />
+            </Suspense>
+          </Canvas>
+          <div className="absolute top-4 right-16 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] text-white font-bold uppercase tracking-widest pointer-events-none">
+            3D Interaction Active
+          </div>
+        </div>
+      );
+    }
+    return (
+      <img 
+        src={project.imageUrl} 
+        alt={project.title} 
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -51,16 +150,18 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
 
           {/* Left Side: Visuals */}
           <div className="w-full lg:w-[60%] h-64 lg:h-auto overflow-hidden bg-zinc-50 border-r relative group">
-            <img 
-              src={project.imageUrl} 
-              alt={project.title} 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            <div className="absolute bottom-8 left-8 flex gap-3">
+            {renderMedia()}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+            <div className="absolute bottom-8 left-8 flex gap-3 pointer-events-none">
                <span className="bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border border-zinc-200 shadow-sm flex items-center gap-2">
                  <TheDot size="sm" /> {project.category}
                </span>
+               {project.mediaType !== 'image' && (
+                 <span className="bg-primary text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/20 shadow-sm flex items-center gap-2">
+                   {project.mediaType === 'video' ? <Play className="h-3 w-3 fill-current" /> : <Box className="h-3 w-3" />}
+                   {project.mediaType?.toUpperCase()}
+                 </span>
+               )}
             </div>
           </div>
 
@@ -115,6 +216,32 @@ export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
                   </p>
                 </div>
               </div>
+
+              {/* Milestones / Timeline */}
+              {milestones.length > 0 && (
+                <div className="mb-12">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Project Evolution</h3>
+                  </div>
+                  <div className="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-zinc-100">
+                    {milestones.map((milestone, idx) => (
+                      <div key={milestone.id} className="relative pl-10">
+                        <div className="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white border border-zinc-200 flex items-center justify-center z-10">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        </div>
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-bold text-zinc-900">{milestone.title}</h4>
+                          <p className="text-xs text-zinc-500 leading-relaxed">{milestone.description}</p>
+                          {milestone.imageUrl && (
+                            <img src={milestone.imageUrl} className="w-full h-32 object-cover rounded-lg border mt-2" alt="" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions */}

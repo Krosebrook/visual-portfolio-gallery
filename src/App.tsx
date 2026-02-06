@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { PortfolioGallery } from './components/PortfolioGallery';
 import { Testimonials } from './components/Testimonials';
 import { ContactSection } from './components/ContactSection';
@@ -11,11 +12,14 @@ import { blink } from './lib/blink';
 import { useEffect, useState, useRef } from 'react';
 import { LibraryHero } from './components/LibraryHero';
 import { TheDot } from './components/ui/TheDot';
+import ProofingPortal from './components/ProofingPortal';
 
 function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
 
   useEffect(() => {
     return blink.auth.onAuthStateChanged(({ user }) => setUser(user));
@@ -24,6 +28,8 @@ function Navbar({ onAdminOpen }: { onAdminOpen: () => void }) {
   useEffect(() => {
     return scrollY.onChange((latest) => setIsScrolled(latest > 50));
   }, [scrollY]);
+
+  if (!isHome) return null;
 
   return (
     <nav 
@@ -188,14 +194,9 @@ function Footer() {
   );
 }
 
-export default function App() {
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
+function Home({ onAdminOpen, refreshKey }: { onAdminOpen: () => void, refreshKey: number }) {
   return (
-    <main className="min-h-screen bg-background">
-      <Navbar onAdminOpen={() => setIsAdminOpen(true)} />
-      
+    <>
       <LibraryHero />
 
       <section id="collection" className="bg-white py-32">
@@ -225,6 +226,22 @@ export default function App() {
       </section>
 
       <ContactSection />
+    </>
+  );
+}
+
+export default function App() {
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  return (
+    <main className="min-h-screen bg-background">
+      <Navbar onAdminOpen={() => setIsAdminOpen(true)} />
+      
+      <Routes>
+        <Route path="/" element={<Home onAdminOpen={() => setIsAdminOpen(true)} refreshKey={refreshKey} />} />
+        <Route path="/proofing/:projectId" element={<ProofingPortal />} />
+      </Routes>
 
       <Footer />
       <Toaster position="bottom-right" richColors />
