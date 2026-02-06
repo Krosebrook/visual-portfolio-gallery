@@ -25,11 +25,13 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSavedProject, setLastSavedProject] = useState<any>(null);
   
+  // Smart Clarification State
+  const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+  const [isClarifying, setIsClarifying] = useState(false);
+  
   const [projectForm, setProjectForm] = useState({ 
-    title: '', 
-    description: '', 
-    category: '', 
-    imageUrl: '',
+    title: '', description: '', category: '', imageUrl: '',
     githubUrl: '',
     demoUrl: '',
     mediaType: 'image' as 'image' | 'video' | '3d',
@@ -95,6 +97,9 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
     setZipFile(null);
     setSyncUrl('');
     setDeployedUrl('');
+    setClarificationQuestions([]);
+    setClarificationAnswers({});
+    setIsClarifying(false);
   };
 
   const handleImageUpload = async (file: File) => {
@@ -123,7 +128,7 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
     }
   };
 
-  const handleIntakeGenerationWithUrls = async (githubUrlOverride?: string, demoUrlOverride?: string) => {
+  const handleIntakeGenerationWithUrls = async (githubUrlOverride?: string, demoUrlOverride?: string, forceProceed = false) => {
     const githubUrl = githubUrlOverride ?? projectForm.githubUrl;
     const demoUrl = demoUrlOverride ?? projectForm.demoUrl;
 
@@ -131,8 +136,47 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
       return toast.error('Please provide a URL or ZIP file to analyze');
     }
 
+    // Smart Ambiguity Check
+    if (!forceProceed && (githubUrl || demoUrl)) {
+      setIsGenerating(true);
+      try {
+        toast.info('Analyzing input clarity...');
+        const checkResult = await blink.ai.generateObject({
+          schema: {
+            type: 'object',
+            properties: {
+              isAmbiguous: { type: 'boolean' },
+              questions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 6 },
+              reason: { type: 'string' }
+            },
+            required: ['isAmbiguous', 'questions']
+          },
+          prompt: `Analyze this project input for ambiguity or incompleteness. 
+          GitHub: ${githubUrl || 'None'}
+          Demo: ${demoUrl || 'None'}
+          ZIP provided: ${!!zipFile}
+          
+          If the input is just a generic URL without much context, or if it's unclear what the project is about, mark as isAmbiguous: true and provide 3-6 specific clarifying questions to help build a better portfolio entry.
+          Examples of questions: "What was your specific role in this project?", "What technologies were most critical to this build?", "Who was the target audience?"`
+        });
+
+        const { isAmbiguous, questions } = checkResult.object as any;
+        
+        if (isAmbiguous) {
+          setClarificationQuestions(questions);
+          setIsClarifying(true);
+          setIsGenerating(false);
+          toast.warning('We need a bit more info to make this project perfect.');
+          return;
+        }
+      } catch (error) {
+        console.error('Ambiguity check failed, proceeding anyway');
+      }
+    }
+
     setIsGenerating(true);
     setLastSavedProject(null);
+    setIsClarifying(false);
     let uploadedZipUrl = '';
 
     try {
@@ -149,6 +193,14 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
       if (githubUrl) analysisPrompt += `GitHub URL: ${githubUrl}. `;
       if (demoUrl) analysisPrompt += `Live Demo URL: ${demoUrl}. `;
       if (uploadedZipUrl) analysisPrompt += `A ZIP file archive is available at: ${uploadedZipUrl}. `;
+      
+      // Include clarification answers if available
+      if (Object.keys(clarificationAnswers).length > 0) {
+        analysisPrompt += `\nAdditional Context from User:\n`;
+        Object.entries(clarificationAnswers).forEach(([q, a]) => {
+          if (a) analysisPrompt += `Q: ${q}\nA: ${a}\n`;
+        });
+      }
 
       toast.info('Analyzing source and generating assets...');
 
@@ -247,6 +299,10 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
 
   // Wrapper for the button click (no URL overrides)
   const handleIntakeGeneration = () => handleIntakeGenerationWithUrls();
+
+  const submitClarification = () => {
+    handleIntakeGenerationWithUrls(undefined, undefined, true);
+  };
 
   const handleExternalSync = async () => {
     if (selectedConnector.id === 'github') {
@@ -432,6 +488,37 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
       let newFormData = { ...projectForm };
       const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
       
+      // Smart Ambiguity Check for Direct Files
+      if (!isClarifying) {
+        toast.info('Analyzing file clarity...');
+        try {
+          const checkResult = await blink.ai.generateObject({
+            schema: {
+              type: 'object',
+              properties: {
+                isAmbiguous: { type: 'boolean' },
+                questions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 6 }
+              },
+              required: ['isAmbiguous', 'questions']
+            },
+            prompt: `A user uploaded a file named "${file.name}" for their portfolio. 
+            Analyze if this file alone is enough to create a high-quality portfolio entry.
+            If not, provide 3-6 clarifying questions to help flesh out the project details.`
+          });
+
+          if (checkResult.object.isAmbiguous) {
+            setClarificationQuestions(checkResult.object.questions);
+            setProjectForm(prev => ({ ...prev, imageUrl: isImage ? publicUrl : prev.imageUrl }));
+            setIsClarifying(true);
+            setLoading(false);
+            toast.warning('We found your file, but need a few details to build the perfect archive entry.');
+            return;
+          }
+        } catch (e) {
+          console.error('File ambiguity check failed');
+        }
+      }
+
       if (isImage) {
         // For images: use as cover, generate title/description via AI
         toast.info('Analyzing image and creating project entry...');
@@ -592,6 +679,64 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
               className="text-emerald-600"
             >
               Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Smart Clarification UI */}
+      {isClarifying && clarificationQuestions.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 space-y-6 animate-in zoom-in-95 duration-300 shadow-xl shadow-primary/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Help us perfect this project</h3>
+              <p className="text-sm text-muted-foreground">The AI needs a few more details to create a comprehensive professional entry.</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            {clarificationQuestions.map((q, idx) => (
+              <div key={idx} className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-700">{q}</label>
+                <Textarea 
+                  placeholder="Tell us more..."
+                  value={clarificationAnswers[q] || ''}
+                  onChange={(e) => setClarificationAnswers(prev => ({ ...prev, [q]: e.target.value }))}
+                  className="bg-white border-zinc-200 focus:border-primary/50 min-h-[60px]"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-primary/10">
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setIsClarifying(false);
+                setClarificationQuestions([]);
+                setClarificationAnswers({});
+              }}
+              disabled={isWorking}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => handleIntakeGenerationWithUrls(undefined, undefined, true)}
+              disabled={isWorking}
+            >
+              Skip & Proceed
+            </Button>
+            <Button 
+              onClick={submitClarification}
+              disabled={isWorking}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
+            >
+              {isWorking ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Generate Project
             </Button>
           </div>
         </div>
