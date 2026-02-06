@@ -30,6 +30,7 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
   const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
   const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
   const [isClarifying, setIsClarifying] = useState(false);
+  const [isAutoPopulating, setIsAutoPopulating] = useState(false);
   
   const [projectForm, setProjectForm] = useState({ 
     title: '', description: '', category: '', imageUrl: '',
@@ -121,6 +122,121 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
     setClarificationQuestions([]);
     setClarificationAnswers({});
     setIsClarifying(false);
+  };
+
+  // Auto-populate clarification answers with AI-generated content
+  const autoPopulateClarificationAnswers = async (
+    questions: string[], 
+    githubUrl?: string, 
+    demoUrl?: string
+  ) => {
+    setIsAutoPopulating(true);
+    try {
+      const result = await blink.ai.generateObject({
+        schema: {
+          type: 'object',
+          properties: {
+            answers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  question: { type: 'string' },
+                  suggestedAnswer: { type: 'string' }
+                },
+                required: ['question', 'suggestedAnswer']
+              }
+            }
+          },
+          required: ['answers']
+        },
+        prompt: `Based on the following project context, generate professional suggested answers for each clarification question.
+
+Project Context:
+- GitHub URL: ${githubUrl || 'Not provided'}
+- Demo URL: ${demoUrl || 'Not provided'}
+- ZIP file: ${zipFile ? 'Provided' : 'Not provided'}
+
+Questions to answer:
+${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Provide thoughtful, professional answers that would make a compelling portfolio entry. Each answer should be 1-3 sentences, specific, and highlight technical skills or accomplishments where appropriate.`
+      });
+
+      const { answers } = result.object as { answers: Array<{ question: string; suggestedAnswer: string }> };
+      
+      const answersMap: Record<string, string> = {};
+      answers.forEach((a, idx) => {
+        if (questions[idx]) {
+          answersMap[questions[idx]] = a.suggestedAnswer;
+        }
+      });
+      
+      setClarificationAnswers(answersMap);
+      toast.success('AI suggestions generated! Review and edit as needed.');
+    } catch (error) {
+      console.error('Failed to auto-populate answers:', error);
+      toast.warning('Could not generate suggestions. Please fill in manually.');
+    } finally {
+      setIsAutoPopulating(false);
+    }
+  };
+
+  // Auto-populate answers for file uploads
+  const autoPopulateFileAnswers = async (
+    questions: string[],
+    fileName: string,
+    fileUrl: string
+  ) => {
+    setIsAutoPopulating(true);
+    try {
+      const result = await blink.ai.generateObject({
+        schema: {
+          type: 'object',
+          properties: {
+            answers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  question: { type: 'string' },
+                  suggestedAnswer: { type: 'string' }
+                },
+                required: ['question', 'suggestedAnswer']
+              }
+            }
+          },
+          required: ['answers']
+        },
+        prompt: `Based on an uploaded file, generate professional suggested answers for each clarification question.
+
+File Context:
+- File name: ${fileName}
+- File URL: ${fileUrl}
+
+Questions to answer:
+${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Infer what you can from the file name and provide thoughtful, professional answers. Each answer should be 1-3 sentences and highlight relevant skills or context.`
+      });
+
+      const { answers } = result.object as { answers: Array<{ question: string; suggestedAnswer: string }> };
+      
+      const answersMap: Record<string, string> = {};
+      answers.forEach((a, idx) => {
+        if (questions[idx]) {
+          answersMap[questions[idx]] = a.suggestedAnswer;
+        }
+      });
+      
+      setClarificationAnswers(answersMap);
+      toast.success('AI suggestions generated! Review and edit as needed.');
+    } catch (error) {
+      console.error('Failed to auto-populate file answers:', error);
+      toast.warning('Could not generate suggestions. Please fill in manually.');
+    } finally {
+      setIsAutoPopulating(false);
+    }
   };
 
   // Handler for AI recommendation selection
@@ -230,7 +346,9 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
           setClarificationQuestions(questions);
           setIsClarifying(true);
           setIsGenerating(false);
-          toast.warning('We need a bit more info to make this project perfect.');
+          // Auto-populate answers with AI
+          autoPopulateClarificationAnswers(questions, githubUrl, demoUrl);
+          toast.info('AI is generating suggested answers. Review and edit as needed.');
           return;
         }
       } catch (error) {
@@ -574,8 +692,10 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
             setClarificationQuestions(checkResult.object.questions);
             setProjectForm(prev => ({ ...prev, imageUrl: isImage ? publicUrl : prev.imageUrl }));
             setIsClarifying(true);
+            // Auto-populate answers for file uploads
+            autoPopulateFileAnswers(checkResult.object.questions, file.name, publicUrl);
             setLoading(false);
-            toast.warning('We found your file, but need a few details to build the perfect archive entry.');
+            toast.info('AI is generating suggestions for your file. Review and edit as needed.');
             return;
           }
         } catch (e) {
@@ -751,26 +871,54 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
       {/* Smart Clarification UI */}
       {isClarifying && clarificationQuestions.length > 0 && (
         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 space-y-6 animate-in zoom-in-95 duration-300 shadow-xl shadow-primary/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                {isAutoPopulating ? (
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-primary" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">
+                  {isAutoPopulating ? 'Generating AI Suggestions...' : 'Review & Edit Project Details'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {isAutoPopulating 
+                    ? 'AI is creating professional responses based on your project context.'
+                    : 'AI-generated suggestions below. Edit any field to personalize your entry.'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold">Help us perfect this project</h3>
-              <p className="text-sm text-muted-foreground">The AI needs a few more details to create a comprehensive professional entry.</p>
-            </div>
+            {!isAutoPopulating && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Editable</span>
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 gap-6">
             {clarificationQuestions.map((q, idx) => (
               <div key={idx} className="space-y-2">
                 <label className="text-sm font-semibold text-zinc-700">{q}</label>
-                <Textarea 
-                  placeholder="Tell us more..."
-                  value={clarificationAnswers[q] || ''}
-                  onChange={(e) => setClarificationAnswers(prev => ({ ...prev, [q]: e.target.value }))}
-                  className="bg-white border-zinc-200 focus:border-primary/50 min-h-[60px]"
-                />
+                <div className="relative">
+                  <Textarea 
+                    placeholder={isAutoPopulating ? "Generating..." : "Edit this response..."}
+                    value={clarificationAnswers[q] || ''}
+                    onChange={(e) => setClarificationAnswers(prev => ({ ...prev, [q]: e.target.value }))}
+                    className={`bg-white border-zinc-200 focus:border-primary/50 min-h-[60px] pr-10 transition-all ${
+                      isAutoPopulating ? 'opacity-50' : ''
+                    } ${clarificationAnswers[q] ? 'border-emerald-200 bg-emerald-50/30' : ''}`}
+                    disabled={isAutoPopulating}
+                  />
+                  {clarificationAnswers[q] && !isAutoPopulating && (
+                    <div className="absolute right-3 top-3">
+                      <Sparkles className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -783,20 +931,20 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
                 setClarificationQuestions([]);
                 setClarificationAnswers({});
               }}
-              disabled={isWorking}
+              disabled={isWorking || isAutoPopulating}
             >
               Cancel
             </Button>
             <Button 
               variant="outline"
               onClick={() => handleIntakeGenerationWithUrls(undefined, undefined, true)}
-              disabled={isWorking}
+              disabled={isWorking || isAutoPopulating}
             >
               Skip & Proceed
             </Button>
             <Button 
               onClick={submitClarification}
-              disabled={isWorking}
+              disabled={isWorking || isAutoPopulating}
               className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
             >
               {isWorking ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
