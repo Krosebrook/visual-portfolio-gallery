@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Github, Globe, Loader2, Sparkles, Image as ImageIcon, RefreshCw, Search, CheckCircle2, ExternalLink, Upload, FileArchive, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { blink } from '@/lib/blink';
 import { toast } from 'sonner';
 import { CREATIVE_CONNECTORS, type CreativeArtifact } from '@/lib/connectors';
+import { ProjectRecommendations } from './ProjectRecommendations';
 
 interface IntakeFlowProps {
   onProjectAdded: () => void;
@@ -41,6 +42,26 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
     auditData: null as any,
     zipUrl: ''
   });
+  
+  // Existing projects for AI recommendations
+  const [existingProjects, setExistingProjects] = useState<Array<{ title: string; category: string; tags?: string }>>([]);
+  
+  // Fetch existing projects for context
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const projects = await blink.db.projects.list();
+        setExistingProjects(projects.map(p => ({ 
+          title: p.title, 
+          category: p.category, 
+          tags: p.tags 
+        })));
+      } catch (e) {
+        // Silent fail - recommendations will work without context
+      }
+    };
+    fetchProjects();
+  }, []);
 
   // Core save function - saves project to database
   const saveProjectToDb = async (formData: typeof projectForm): Promise<any> => {
@@ -100,6 +121,49 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
     setClarificationQuestions([]);
     setClarificationAnswers({});
     setIsClarifying(false);
+  };
+
+  // Handler for AI recommendation selection
+  const handleSuggestionSelect = async (suggestion: { 
+    title: string; 
+    description: string; 
+    category: string; 
+    tags: string[]; 
+    imagePrompt: string 
+  }) => {
+    // Generate cover image from the suggestion's prompt
+    setLoading(true);
+    try {
+      toast.info('Generating cover image for your selected project...');
+      const images = await blink.ai.generateImage({
+        prompt: suggestion.imagePrompt + ' -- High quality, professional aesthetic, clean design.',
+        n: 1
+      });
+      
+      setProjectForm(prev => ({
+        ...prev,
+        title: suggestion.title,
+        description: suggestion.description,
+        category: suggestion.category,
+        tags: suggestion.tags.join(', '),
+        imageUrl: images[0],
+        mediaType: 'image',
+      }));
+      
+      toast.success('Project suggestion applied! Review and save to library.');
+    } catch (error) {
+      // Still apply text even if image fails
+      setProjectForm(prev => ({
+        ...prev,
+        title: suggestion.title,
+        description: suggestion.description,
+        category: suggestion.category,
+        tags: suggestion.tags.join(', '),
+      }));
+      toast.warning('Applied suggestion but image generation failed. You can upload an image manually.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -749,6 +813,14 @@ export function IntakeFlow({ onProjectAdded, loading, setLoading, onTabChange }:
         <p className="text-muted-foreground text-lg">
           Upload files, provide URLs, or connect creative platforms. Each upload automatically creates a project entry in your library.
         </p>
+      </div>
+
+      {/* AI Project Recommendations */}
+      <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-2xl p-6 mb-6">
+        <ProjectRecommendations 
+          existingProjects={existingProjects}
+          onSelectSuggestion={handleSuggestionSelect}
+        />
       </div>
 
       {/* Quick Upload Zone */}
