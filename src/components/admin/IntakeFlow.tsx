@@ -1120,6 +1120,32 @@ Infer what you can from the file name and provide thoughtful, professional answe
                   className="pl-10 h-12 bg-zinc-50 border-zinc-200"
                 />
               </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Or Upload Source Archive</label>
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <FileArchive className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Input 
+                      type="file" 
+                      accept=".zip,.rar,.7z,.tar,.gz"
+                      onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                      className="pl-10 h-12 bg-zinc-50 border-zinc-200 text-sm file:mr-4 file:py-2 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
+                    />
+                  </div>
+                  {zipFile && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium">
+                      <FileArchive className="h-3.5 w-3.5" />
+                      <span className="max-w-[120px] truncate">{zipFile.name}</span>
+                      <button 
+                        onClick={() => setZipFile(null)}
+                        className="ml-1 hover:text-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
